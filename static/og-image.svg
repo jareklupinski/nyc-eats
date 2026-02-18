@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Grid lines suggesting a map -->
+  <g stroke="#ffffff" stroke-opacity="0.06" stroke-width="1">
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="400" x2="1200" y2="400"/>
+    <line x1="0" y1="500" x2="1200" y2="500"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+  <!-- Scattered map pins -->
+  <g font-size="28" opacity="0.15">
+    <text x="150" y="180">📍</text>
+    <text x="380" y="120">📍</text>
+    <text x="520" y="250">📍</text>
+    <text x="700" y="150">📍</text>
+    <text x="850" y="280">📍</text>
+    <text x="1020" y="200">📍</text>
+    <text x="280" y="400">📍</text>
+    <text x="450" y="480">📍</text>
+    <text x="680" y="420">📍</text>
+    <text x="900" y="500">📍</text>
+    <text x="1080" y="450">📍</text>
+  </g>
+  <!-- Main content -->
+  <text x="600" y="240" font-family="system-ui, -apple-system, sans-serif" font-size="96" font-weight="800" fill="#ffffff" text-anchor="middle">🍴 NYC Eats</text>
+  <text x="600" y="330" font-family="system-ui, -apple-system, sans-serif" font-size="36" fill="#94a3b8" text-anchor="middle">Every restaurant, bar, and liquor license in New York City</text>
+  <text x="600" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#64748b" text-anchor="middle">DOHMH inspections · SLA licenses · Yelp · Google Maps</text>
+  <!-- Accent bar -->
+  <rect x="450" y="440" width="300" height="4" rx="2" fill="#2563eb"/>
+  <text x="600" y="510" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#475569" text-anchor="middle">food.lupin.ski</text>
+</svg>
