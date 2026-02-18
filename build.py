@@ -388,6 +388,12 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
                 "removed": source.bin_dedup_count,
                 "detail": f"{source.raw_camis_count} unique CAMIS → {source.raw_camis_count - source.bin_dedup_count} after dedup",
             })
+        if hasattr(source, "dedup_count") and source.dedup_count:
+            pipeline_stats.append({
+                "label": f"{source.name.upper()} license dedup (same name + address)",
+                "removed": source.dedup_count,
+                "detail": f"{source.raw_count} raw → {source.raw_count - source.dedup_count} after dedup",
+            })
 
     log.info("Total venues (pre-merge): %d from %d sources", len(all_venues), len(source_meta))
 

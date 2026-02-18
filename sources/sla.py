@@ -44,6 +44,10 @@ OUT_FIELDS = (
 
 
 class SLASource(DataSource):
+    # Stats populated after fetch()
+    raw_count: int = 0
+    dedup_count: int = 0
+
     @property
     def name(self) -> str:
         return "sla"
@@ -133,5 +137,27 @@ class SLASource(DataSource):
             if not data.get("exceededTransferLimit", False):
                 break
 
-        log.info("SLA: fetched %d venues", len(venues))
+        self.raw_count = len(venues)
+
+        # Dedup: same establishment can hold multiple license types.
+        # Key by normalised (name, address, borough) – merge tags & meta.
+        deduped: dict[tuple[str, str, str], Venue] = {}
+        for v in venues:
+            key = (v.name.lower().strip(), v.address.lower().strip(), v.borough)
+            if key in deduped:
+                existing = deduped[key]
+                # merge tags (union, preserve order)
+                for t in v.tags:
+                    if t not in existing.tags:
+                        existing.tags.append(t)
+                # collect license info
+                existing.meta.setdefault("all_license_types", [existing.meta.get("license_type", "")])
+                if v.meta.get("license_type") not in existing.meta["all_license_types"]:
+                    existing.meta["all_license_types"].append(v.meta.get("license_type", ""))
+            else:
+                deduped[key] = v
+
+        venues = list(deduped.values())
+        self.dedup_count = self.raw_count - len(venues)
+        log.info("SLA: fetched %d venues (%d duplicates removed)", len(venues), self.dedup_count)
         return venues
