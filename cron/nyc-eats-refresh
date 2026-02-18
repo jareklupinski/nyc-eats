@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# nyc-eats-refresh — weekly rebuild of the NYC Eats site
+#
+# Runs every Sunday at 3:00 AM ET on the VPS via systemd timer.
+#
+# What it does:
+#   1. Installs/updates Python dependencies
+#   2. Runs the build (fetches fresh data from both APIs)
+#   3. Copies the built site to the nginx serving directory
+#
+# Configuration via env vars — see cron/README.md.
+
+set -euo pipefail
+
+# --- Configuration ---
+REPO_DIR="${NYC_EATS_REPO:-$HOME/nyc-eats}"
+SERVE_DIR="${NYC_EATS_SERVE:-$HOME/nyc-eats-site/dist}"
+LOGFILE="${NYC_EATS_LOG:-$HOME/nyc-eats-site/refresh.log}"
+VENV="$REPO_DIR/.venv"
+
+# --- Helpers ---
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+# --- Main ---
+# When run by systemd, stdout/stderr go to the journal AND
+# are appended to $LOGFILE by the service unit.  When run
+# manually, redirect to the log file ourselves.
+if [ -z "${INVOCATION_ID:-}" ]; then
+    exec >> "$LOGFILE" 2>&1
+fi
+
+log "=== Starting NYC Eats refresh ==="
+
+cd "$REPO_DIR"
+
+# Ensure venv & deps
+if [ ! -d "$VENV" ]; then
+    log "Creating virtualenv…"
+    python3 -m venv "$VENV"
+fi
+"$VENV/bin/pip" install -q --upgrade pip
+"$VENV/bin/pip" install -q -r requirements.txt
+
+# Build (fresh fetch, no cache)
+log "Building site…"
+"$VENV/bin/python" build.py -v 2>&1
+
+# Deploy to serving directory
+log "Syncing to $SERVE_DIR…"
+rsync -a --delete dist/ "$SERVE_DIR/"
+
+log "=== Refresh complete ($(wc -l < "$REPO_DIR/dist/venues.js" | tr -d ' ') lines in venues.js) ==="
+echo ""

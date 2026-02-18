@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NYC Eats</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+  <!-- Leaflet core -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin>
+  <!-- MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>NYC Eats</h1>
+  <p class="subtitle">{{ venue_count | e }} venues · {{ build_time | e }}</p>
+
+  <div class="filter-section">
+    <h2>Sources</h2>
+    <div id="source-filters">
+      {% for src in all_sources %}
+      <label>
+        <input type="checkbox" class="source-cb" value="{{ src | e }}" checked>
+        {{ src | e }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="filter-section">
+    <h2>Tags</h2>
+    <div id="tag-filters">
+      {% for tag in all_tags %}
+      <label>
+        <input type="checkbox" class="tag-cb" value="{{ tag | e }}" checked>
+        {{ tag | e }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="filter-section">
+    <h2>Search</h2>
+    <input type="text" id="search-input" placeholder="Name, cuisine, address…">
+  </div>
+
+  <div class="filter-section">
+    <button id="apply-btn">Apply Filters</button>
+    <button id="reset-btn">Reset</button>
+    <p id="visible-count"></p>
+  </div>
+
+  <div class="filter-section sources-info">
+    <h2>Data Sources</h2>
+    <ul>
+      {% for src in sources %}
+      <li><strong>{{ src.name | e }}</strong>: {{ src.description | e }} ({{ "{:,}".format(src.count) }} venues)</li>
+      {% endfor %}
+    </ul>
+
+    <h3>Pipeline</h3>
+    <table class="pipeline-table">
+      <thead><tr><th>Step</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Raw input</td><td>{{ "{:,}".format(merge_stats.pre_merge) }} venues</td></tr>
+        {% for s in pipeline_stats %}
+        <tr><td>{{ s.label | e }}</td><td>&minus;{{ "{:,}".format(s.removed) }} ({{ s.detail | e }})</td></tr>
+        {% endfor %}
+        <tr><td>Pass 1 &mdash; exact address + borough</td><td>{{ "{:,}".format(merge_stats.pass1) }} merges</td></tr>
+        <tr><td>Pass 2 &mdash; address range containment</td><td>{{ "{:,}".format(merge_stats.pass2) }} merges</td></tr>
+        <tr><td>Pass 3 &mdash; geo-proximity &le; 30 m</td><td>{{ "{:,}".format(merge_stats.pass3) }} merges</td></tr>
+        <tr class="pipeline-total"><td>Final</td><td>{{ "{:,}".format(merge_stats.post_merge) }} venues ({{ "{:,}".format(merge_stats.total_merges) }} merged)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<!-- Venue data (generated at build time) -->
+<script src="venues.js?v={{ data_hash }}"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  // --- Map setup ---
+  const map = L.map("map", {
+    center: [40.7128, -74.006],
+    zoom: 11,
+    preferCanvas: true,          // much faster for many markers
+    maxZoom: 19,
+  });
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // --- Marker cluster layer ---
+  const clusterGroup = L.markerClusterGroup({
+    chunkedLoading: true,        // don't freeze the UI
+    chunkInterval: 100,
+    chunkDelay: 10,
+    maxClusterRadius: 50,
+    spiderfyOnMaxZoom: true,
+    spiderfyOnEveryZoom: true,
+    spiderfyDistanceMultiplier: 1.5,
+  });
+  map.addLayer(clusterGroup);
+
+  // --- Marker icons by source + grade ---
+  const COLORS = {
+    dohmh: "#2563eb",   // blue
+    both:  "#7c3aed",   // purple
+    sla:   "#dc2626",   // red
+  };
+  const DEFAULT_COLOR = "#6b7280";
+
+  // Icon cache to avoid creating thousands of duplicate DOM icon objects
+  const iconCache = {};
+
+  function makeIcon(venue) {
+    const src = venue.source;
+    const grade = (venue.grade || "").trim().toUpperCase();
+
+    let label, color, cls;
+
+    if (src === "sla") {
+      // SLA-only: martini glass
+      label = "\uD83C\uDF78";  // 🍸
+      color = COLORS.sla;
+      cls = "vm-martini";
+    } else if (src === "both") {
+      // Matched in both sources: purple + grade letter
+      label = (grade && grade !== "P" && grade !== "N" && grade !== "Z") ? grade : "?";
+      color = COLORS.both;
+      cls = "vm-letter";
+    } else {
+      // DOHMH only: blue + grade letter
+      label = (grade && grade !== "P" && grade !== "N" && grade !== "Z") ? grade : "?";
+      color = COLORS.dohmh;
+      cls = "vm-letter";
+    }
+
+    const key = `${cls}-${color}-${label}`;
+    if (!iconCache[key]) {
+      iconCache[key] = L.divIcon({
+        className: `venue-marker ${cls}`,
+        html: `<span style="color:${color}">${label}</span>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+    }
+    return iconCache[key];
+  }
+
+  // --- Build markers ---
+  const allMarkers = [];
+
+  for (const v of VENUE_DATA) {
+    const popupParts = [`<strong>${escHtml(v.name)}</strong>`];
+    if (v.sla_name && v.sla_name.toLowerCase() !== v.name.toLowerCase()) {
+      popupParts.push(`<em class="popup-aka">SLA: ${escHtml(v.sla_name)}</em>`);
+    }
+    if (v.cuisine) popupParts.push(escHtml(v.cuisine));
+    if (v.address) popupParts.push(escHtml(v.address));
+    if (v.borough) popupParts.push(escHtml(v.borough));
+    if (v.grade)   popupParts.push(`Grade: ${escHtml(v.grade)}`);
+    if (v.phone)   popupParts.push(escHtml(v.phone));
+    popupParts.push(`<span class="popup-source">${escHtml(v.source)}</span>`);
+    if (v.tags && v.tags.length) {
+      popupParts.push(`<span class="popup-tags">${v.tags.map(escHtml).join(", ")}</span>`);
+    }
+
+    const marker = L.marker([v.lat, v.lng], { icon: makeIcon(v) });
+    marker.bindPopup(popupParts.join("<br>"), { maxWidth: 260 });
+
+    // Attach venue data for filtering
+    marker._venue = v;
+    allMarkers.push(marker);
+  }
+
+  // Initial add
+  clusterGroup.addLayers(allMarkers);
+  updateCount(allMarkers.length);
+
+  // --- Filtering ---
+  const searchInput = document.getElementById("search-input");
+  const applyBtn = document.getElementById("apply-btn");
+  const resetBtn = document.getElementById("reset-btn");
+
+  applyBtn.addEventListener("click", applyFilters);
+  resetBtn.addEventListener("click", resetFilters);
+  searchInput.addEventListener("keyup", function (e) {
+    if (e.key === "Enter") applyFilters();
+  });
+
+  function applyFilters() {
+    const activeSources = new Set(
+      [...document.querySelectorAll(".source-cb:checked")].map(cb => cb.value)
+    );
+    const activeTags = new Set(
+      [...document.querySelectorAll(".tag-cb:checked")].map(cb => cb.value)
+    );
+    const query = searchInput.value.trim().toLowerCase();
+
+    clusterGroup.clearLayers();
+
+    const visible = allMarkers.filter(m => {
+      const v = m._venue;
+      if (!activeSources.has(v.source)) return false;
+      if (v.tags && v.tags.length) {
+        if (!v.tags.some(t => activeTags.has(t))) return false;
+      }
+      if (query) {
+        const hay = [v.name, v.cuisine, v.address, v.borough, ...(v.tags || [])].join(" ").toLowerCase();
+        if (!hay.includes(query)) return false;
+      }
+      return true;
+    });
+
+    clusterGroup.addLayers(visible);
+    updateCount(visible.length);
+  }
+
+  function resetFilters() {
+    document.querySelectorAll(".source-cb, .tag-cb").forEach(cb => cb.checked = true);
+    searchInput.value = "";
+    clusterGroup.clearLayers();
+    clusterGroup.addLayers(allMarkers);
+    updateCount(allMarkers.length);
+  }
+
+  function updateCount(n) {
+    document.getElementById("visible-count").textContent =
+      n.toLocaleString() + " venues shown";
+  }
+
+  function escHtml(s) {
+    const div = document.createElement("div");
+    div.textContent = s || "";
+    return div.innerHTML;
+  }
+
+  // --- Toggle sidebar on mobile ---
+  const sidebar = document.getElementById("sidebar");
+  const toggleBtn = document.createElement("button");
+  toggleBtn.id = "sidebar-toggle";
+  toggleBtn.textContent = "☰";
+  toggleBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
+  document.body.appendChild(toggleBtn);
+})();
+</script>
+</body>
+</html>

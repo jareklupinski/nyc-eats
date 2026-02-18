@@ -1,0 +1,15 @@
+[Unit]
+Description=NYC Eats weekly data refresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{VPS_USER}}
+ExecStart={{VPS_REPO}}/cron/nyc-eats-refresh
+StandardOutput=append:{{VPS_PATH}}/refresh.log
+StandardError=append:{{VPS_PATH}}/refresh.log
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
