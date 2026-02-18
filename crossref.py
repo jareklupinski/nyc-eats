@@ -85,6 +85,17 @@ def init_db() -> sqlite3.Connection:
             google_place_id   TEXT
         )
     """)
+    # Migrate: add review count / rating columns if missing
+    existing_cols = {r[1] for r in conn.execute("PRAGMA table_info(crossref)")}
+    migrations = [
+        ("yelp_review_count", "INTEGER"),
+        ("yelp_rating",       "REAL"),
+        ("google_rating_count", "INTEGER"),
+        ("google_rating",       "REAL"),
+    ]
+    for col, typ in migrations:
+        if col not in existing_cols:
+            conn.execute(f"ALTER TABLE crossref ADD COLUMN {col} {typ}")
     conn.commit()
     return conn
 
@@ -157,20 +168,25 @@ def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
 
             found = False
             yelp_id = yelp_url = None
+            review_count = None
+            yelp_rating = None
             for biz in resp.json().get("businesses", []):
                 if _name_similarity(name, biz.get("name", "")) >= 0.45:
                     found = True
                     yelp_id = biz.get("id")
                     yelp_url = biz.get("url")
+                    review_count = biz.get("review_count")
+                    yelp_rating = biz.get("rating")
                     break
 
             conn.execute(
                 "UPDATE crossref SET yelp_status=?, yelp_checked_at=?, "
-                "yelp_business_id=?, yelp_url=? WHERE venue_key=?",
+                "yelp_business_id=?, yelp_url=?, yelp_review_count=?, yelp_rating=? "
+                "WHERE venue_key=?",
                 (
                     "found" if found else "not_found",
                     datetime.now(timezone.utc).isoformat(),
-                    yelp_id, yelp_url, key,
+                    yelp_id, yelp_url, review_count, yelp_rating, key,
                 ),
             )
         except requests.RequestException as exc:
@@ -242,7 +258,7 @@ def check_google(
                 params={
                     "input": f"{name}, {address}, New York, NY",
                     "inputtype": "textquery",
-                    "fields": "place_id,name,formatted_address",
+                    "fields": "place_id,name,formatted_address,rating,user_ratings_total",
                     "key": GOOGLE_API_KEY,
                 },
                 timeout=15,
@@ -252,14 +268,17 @@ def check_google(
             candidates = data.get("candidates", [])
             found = len(candidates) > 0
             place_id = candidates[0].get("place_id") if found else None
+            g_rating = candidates[0].get("rating") if found else None
+            g_rating_count = candidates[0].get("user_ratings_total") if found else None
 
             conn.execute(
                 "UPDATE crossref SET google_status=?, google_checked_at=?, "
-                "google_place_id=? WHERE venue_key=?",
+                "google_place_id=?, google_rating=?, google_rating_count=? "
+                "WHERE venue_key=?",
                 (
                     "found" if found else "not_found",
                     datetime.now(timezone.utc).isoformat(),
-                    place_id, key,
+                    place_id, g_rating, g_rating_count, key,
                 ),
             )
         except requests.RequestException as exc:
@@ -282,21 +301,133 @@ def check_google(
 
 
 # ---------------------------------------------------------------------------
+# Backfill — re-check 'found' venues missing review count / rating data
+# ---------------------------------------------------------------------------
+
+def backfill_yelp(conn: sqlite3.Connection, limit: int = 500) -> int:
+    """Backfill review_count and rating for Yelp 'found' venues using Business Details API."""
+    if not YELP_API_KEY:
+        log.warning("YELP_API_KEY not set — skipping backfill")
+        return 0
+
+    rows = conn.execute(
+        "SELECT venue_key, yelp_business_id FROM crossref "
+        "WHERE yelp_status = 'found' AND yelp_business_id IS NOT NULL "
+        "AND yelp_review_count IS NULL LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        log.info("Yelp backfill: nothing to do")
+        return 0
+
+    log.info("Yelp backfill: %d venues to update", len(rows))
+    headers = {"Authorization": f"Bearer {YELP_API_KEY}"}
+    filled = 0
+
+    for key, biz_id in rows:
+        try:
+            resp = requests.get(
+                f"https://api.yelp.com/v3/businesses/{biz_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if resp.status_code == 429:
+                log.warning("Yelp backfill rate-limited after %d", filled)
+                conn.commit()
+                return filled
+            resp.raise_for_status()
+            biz = resp.json()
+            conn.execute(
+                "UPDATE crossref SET yelp_review_count=?, yelp_rating=? "
+                "WHERE venue_key=?",
+                (biz.get("review_count"), biz.get("rating"), key),
+            )
+        except requests.RequestException as exc:
+            log.error("Yelp backfill error for %s: %s", biz_id, exc)
+
+        filled += 1
+        if filled % 100 == 0:
+            conn.commit()
+            log.info("Yelp backfill: %d / %d", filled, len(rows))
+        time.sleep(1.0 / YELP_QPS)
+
+    conn.commit()
+    log.info("Yelp backfill: finished %d", filled)
+    return filled
+
+
+def backfill_google(conn: sqlite3.Connection, limit: int = 500) -> int:
+    """Backfill rating / rating_count for Google 'found' venues using Place Details."""
+    if not GOOGLE_API_KEY:
+        log.warning("GOOGLE_API_KEY not set — skipping backfill")
+        return 0
+
+    rows = conn.execute(
+        "SELECT venue_key, google_place_id FROM crossref "
+        "WHERE google_status = 'found' AND google_place_id IS NOT NULL "
+        "AND google_rating_count IS NULL LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        log.info("Google backfill: nothing to do")
+        return 0
+
+    log.info("Google backfill: %d venues to update", len(rows))
+    filled = 0
+
+    for key, place_id in rows:
+        try:
+            resp = requests.get(
+                "https://maps.googleapis.com/maps/api/place/details/json",
+                params={
+                    "place_id": place_id,
+                    "fields": "rating,user_ratings_total",
+                    "key": GOOGLE_API_KEY,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            result = resp.json().get("result", {})
+            conn.execute(
+                "UPDATE crossref SET google_rating=?, google_rating_count=? "
+                "WHERE venue_key=?",
+                (result.get("rating"), result.get("user_ratings_total"), key),
+            )
+        except requests.RequestException as exc:
+            log.error("Google backfill error for %s: %s", place_id, exc)
+
+        filled += 1
+        if filled % 100 == 0:
+            conn.commit()
+            log.info("Google backfill: %d / %d", filled, len(rows))
+        time.sleep(1.0 / GOOGLE_QPS)
+
+    conn.commit()
+    log.info("Google backfill: finished %d", filled)
+    return filled
+
+
+# ---------------------------------------------------------------------------
 # Read helpers (used by build.py)
 # ---------------------------------------------------------------------------
 
 def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
-    """Return {venue_key: {yelp, google}} for all checked venues."""
+    """Return {venue_key: {yelp, google, review counts, ratings}} for all checked venues."""
     flags: dict[str, dict] = {}
     for row in conn.execute(
-        "SELECT venue_key, yelp_status, google_status, yelp_url "
+        "SELECT venue_key, yelp_status, google_status, yelp_url, "
+        "yelp_review_count, yelp_rating, google_rating_count, google_rating "
         "FROM crossref"
     ):
-        key, yelp_st, google_st, yelp_url = row
+        key, yelp_st, google_st, yelp_url, y_rc, y_rat, g_rc, g_rat = row
         flags[key] = {
             "yelp": yelp_st,
             "google": google_st,
             "yelp_url": yelp_url,
+            "yelp_reviews": y_rc,
+            "yelp_rating": y_rat,
+            "google_reviews": g_rc,
+            "google_rating": g_rat,
         }
     return flags
 
@@ -313,6 +444,48 @@ def get_stats(conn: sqlite3.Connection) -> dict:
             counts[row[0]] = row[1]
         stats[svc] = counts
     return stats
+
+
+def get_review_distribution(conn: sqlite3.Connection) -> dict:
+    """Return review count distribution for found venues (for threshold exploration)."""
+    dist: dict[str, dict] = {}
+    for svc, col_rc, col_rat in [
+        ("yelp", "yelp_review_count", "yelp_rating"),
+        ("google", "google_rating_count", "google_rating"),
+    ]:
+        status_col = f"{svc}_status"
+        rows = conn.execute(
+            f"SELECT {col_rc}, {col_rat} FROM crossref "
+            f"WHERE {status_col} = 'found' AND {col_rc} IS NOT NULL"
+        ).fetchall()
+        if not rows:
+            dist[svc] = {"count": 0}
+            continue
+        counts = sorted(r[0] for r in rows)
+        ratings = [r[1] for r in rows if r[1] is not None]
+        n = len(counts)
+        dist[svc] = {
+            "count": n,
+            "min": counts[0],
+            "p10": counts[int(n * 0.10)],
+            "p25": counts[int(n * 0.25)],
+            "median": counts[n // 2],
+            "p75": counts[int(n * 0.75)],
+            "p90": counts[int(n * 0.90)],
+            "max": counts[-1],
+            "avg_rating": round(sum(ratings) / len(ratings), 2) if ratings else None,
+            "under_10": sum(1 for c in counts if c < 10),
+            "under_25": sum(1 for c in counts if c < 25),
+            "under_50": sum(1 for c in counts if c < 50),
+            "under_100": sum(1 for c in counts if c < 100),
+        }
+        # Rating breakdown for low-review venues
+        low_reviews = [(rc, rat) for rc, rat in rows if rc < 50 and rat is not None]
+        if low_reviews:
+            high_rated_hidden = [(rc, rat) for rc, rat in low_reviews if rat >= 4.0]
+            dist[svc]["hidden_gems_candidates"] = len(high_rated_hidden)
+            dist[svc]["hidden_gems_pct"] = round(len(high_rated_hidden) / len(low_reviews) * 100, 1)
+    return dist
 
 
 # ---------------------------------------------------------------------------
@@ -333,6 +506,10 @@ def main():
     parser.add_argument("--google-limit", type=int, default=None)
     parser.add_argument("--google-borough", default="MANHATTAN")
     parser.add_argument("--stats", action="store_true", help="Print stats and exit")
+    parser.add_argument("--backfill", action="store_true",
+                        help="Re-check 'found' venues missing review counts")
+    parser.add_argument("--backfill-limit", type=int, default=500,
+                        help="Max venues to backfill per run")
     args = parser.parse_args()
 
     conn = init_db()
@@ -345,6 +522,20 @@ def main():
             for status, n in sorted(counts.items()):
                 pct = n / total * 100 if total else 0
                 print(f"  {status:12s} {n:>7,}  ({pct:.1f}%)")
+        dist = get_review_distribution(conn)
+        for svc, d in dist.items():
+            if d["count"] == 0:
+                print(f"\n{svc.upper()} reviews: no data yet")
+                continue
+            print(f"\n{svc.upper()} review counts ({d['count']} venues with data):")
+            print(f"  min={d['min']}, p10={d['p10']}, p25={d['p25']}, "
+                  f"median={d['median']}, p75={d['p75']}, p90={d['p90']}, max={d['max']}")
+            print(f"  avg rating: {d['avg_rating']}")
+            print(f"  <10 reviews: {d['under_10']}, <25: {d['under_25']}, "
+                  f"<50: {d['under_50']}, <100: {d['under_100']}")
+            if "hidden_gems_candidates" in d:
+                print(f"  Hidden gem candidates (<50 reviews, ≥4.0★): "
+                      f"{d['hidden_gems_candidates']} ({d['hidden_gems_pct']}% of low-review)")
         conn.close()
         return
 
@@ -359,6 +550,15 @@ def main():
         sync_venues(conn, venues)
     else:
         log.warning("No cached venue data found — run build.py first")
+
+    if args.backfill:
+        t0 = time.time()
+        yelp_n = backfill_yelp(conn, limit=args.backfill_limit)
+        google_n = backfill_google(conn, limit=args.backfill_limit)
+        elapsed = time.time() - t0
+        log.info("Backfill: yelp=%d, google=%d in %.1fs", yelp_n, google_n, elapsed)
+        conn.close()
+        return
 
     t0 = time.time()
     yelp_n = check_yelp(conn, limit=args.yelp_limit)

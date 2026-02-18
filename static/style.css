@@ -144,24 +144,33 @@ button {
 }
 .xr-legend li { margin-bottom: 0.2rem; }
 .xr-legend .xr-star { font-size: 1rem; margin-right: 4px; }
+.xr-badge-icon {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-right: 4px;
+}
 
-/* Flagged filter button */
-.xr-filter-btn {
-  display: block;
-  width: 100%;
+/* Badge filter buttons */
+.badge-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin: 0.5rem 0;
-  padding: 0.4rem 0.6rem;
+}
+.badge-filter-btn {
+  padding: 0.25rem 0.5rem;
   background: #f3f4f6;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #374151;
   transition: all 0.15s;
+  white-space: nowrap;
 }
-.xr-filter-btn:hover { background: #e5e7eb; }
-.xr-filter-btn.active {
+.badge-filter-btn:hover { background: #e5e7eb; }
+.badge-filter-btn.active {
   background: #7c3aed;
   color: #fff;
   border-color: #7c3aed;
@@ -261,6 +270,12 @@ button {
   margin-top: 0.2rem;
   font-size: 0.78rem;
   font-weight: 600;
+}
+.popup-reviews {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: #6b7280;
 }
 
 /* --- Mobile sidebar toggle --- */

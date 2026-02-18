@@ -50,6 +50,7 @@ class Venue:
     phone: str = ""
     grade: str = ""
     zipcode: str = ""
+    opened: str = ""  # ISO date string (YYYY-MM-DD) — earliest known date
     tags: list[str] = field(default_factory=list)
     meta: dict[str, Any] = field(default_factory=dict)
 
@@ -73,6 +74,8 @@ class Venue:
             d["grade"] = self.grade
         if self.zipcode:
             d["zipcode"] = self.zipcode
+        if self.opened:
+            d["opened"] = self.opened
         if self.tags:
             d["tags"] = self.tags
         if self.meta:

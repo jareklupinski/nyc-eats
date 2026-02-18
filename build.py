@@ -138,6 +138,13 @@ def _make_combined(dohmh_v: dict, sla_v: dict) -> dict:
     combined_meta.update(sla_v.get("meta", {}))
     if combined_meta:
         combined["meta"] = combined_meta
+    # Keep earliest opened date from either source
+    d_opened = dohmh_v.get("opened", "")
+    s_opened = sla_v.get("opened", "")
+    if d_opened and s_opened:
+        combined["opened"] = min(d_opened, s_opened)
+    elif s_opened:
+        combined["opened"] = s_opened
     return combined
 
 
@@ -415,6 +422,14 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
             if f:
                 v["xr_y"] = f["yelp"]      # yelp status
                 v["xr_g"] = f["google"]     # google status
+                if f.get("yelp_reviews") is not None:
+                    v["yr"] = f["yelp_reviews"]     # yelp review count
+                if f.get("yelp_rating") is not None:
+                    v["yrt"] = f["yelp_rating"]     # yelp rating
+                if f.get("google_reviews") is not None:
+                    v["gr"] = f["google_reviews"]   # google review count
+                if f.get("google_rating") is not None:
+                    v["grt"] = f["google_rating"]   # google rating
                 xref_checked += 1
         log.info("Cross-ref: stamped %d venues | yelp=%s google=%s", xref_checked, xs.get("yelp", {}), xs.get("google", {}))
     else:

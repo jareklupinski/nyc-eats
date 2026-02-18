@@ -79,13 +79,23 @@
       </tbody>
     </table>
 
-    <h3>Cross-Reference Stars</h3>
+    <h3>Discovery Badges</h3>
     <ul class="xr-legend">
-      <li><span class="xr-star" style="color:#dc2626">★</span> Not on Yelp</li>
-      <li><span class="xr-star" style="color:#2563eb">★</span> Not on Google Maps</li>
-      <li><span class="xr-star" style="color:#9333ea">★</span> Not on either</li>
+      <li><span class="xr-badge-icon" style="color:#2563eb">G</span> Google hidden gem (&lt;100 reviews, &gt;4★)</li>
+      <li><span class="xr-badge-icon" style="color:#dc2626">Y</span> Yelp hidden gem (&lt;100 reviews, &gt;4★)</li>
+      <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> Opened &lt; 1 month ago</li>
+      <li><span class="xr-badge-icon" style="color:#dc2626">★</span> Not on Yelp</li>
+      <li><span class="xr-badge-icon" style="color:#2563eb">★</span> Not on Google Maps</li>
+      <li><span class="xr-badge-icon" style="color:#9333ea">★</span> Not on either</li>
     </ul>
-    <button id="xr-filter-btn" class="xr-filter-btn">Show only unadvertised</button>
+    <div id="badge-filters" class="badge-filters">
+      <button class="badge-filter-btn" data-badge="google-gem"><span style="color:#2563eb">G</span> Google Gems</button>
+      <button class="badge-filter-btn" data-badge="yelp-gem"><span style="color:#dc2626">Y</span> Yelp Gems</button>
+      <button class="badge-filter-btn" data-badge="new-venue"><span style="color:#f59e0b">⏱</span> New</button>
+      <button class="badge-filter-btn" data-badge="not-on-yelp"><span style="color:#dc2626">★</span> No Yelp</button>
+      <button class="badge-filter-btn" data-badge="not-on-google"><span style="color:#2563eb">★</span> No Google</button>
+      <button class="badge-filter-btn" data-badge="any">All flagged</button>
+    </div>
     <div id="xr-venue-list" class="xr-venue-list"></div>
 
     <a href="https://github.com/jareklupinski/nyc-eats" target="_blank" rel="noopener" class="github-link">
@@ -145,15 +155,43 @@
   // Icon cache to avoid creating thousands of duplicate DOM icon objects
   const iconCache = {};
 
-  // Cross-ref star: red=not-on-yelp, blue=not-on-google, purple=both missing
-  function xrefStar(venue) {
-    const y = venue.xr_y, g = venue.xr_g;
-    const noYelp   = y === "not_found";
-    const noGoogle = g === "not_found";
-    if (noYelp && noGoogle) return { cls: "xr-purple", color: "#9333ea" };
-    if (noYelp)             return { cls: "xr-red",    color: "#dc2626" };
-    if (noGoogle)           return { cls: "xr-blue",   color: "#2563eb" };
-    return null;
+  // Build date for "new venue" detection (opened < 1 month ago)
+  const NOW = new Date();
+  const ONE_MONTH_AGO = new Date(NOW);
+  ONE_MONTH_AGO.setMonth(ONE_MONTH_AGO.getMonth() - 1);
+  const ONE_MONTH_AGO_STR = ONE_MONTH_AGO.toISOString().slice(0, 10);
+
+  // --- Badge detection ---
+  // Returns array of badge objects for a venue (can have multiple)
+  function venueBadges(venue) {
+    const badges = [];
+    // Google hidden gem: found on Google, <100 reviews, >4 stars
+    if (venue.xr_g === "found" && venue.gr != null && venue.gr < 100 && venue.grt != null && venue.grt > 4) {
+      badges.push({ type: "google-gem", label: "G", color: "#2563eb", cls: "badge-g" });
+    }
+    // Yelp hidden gem: found on Yelp, <100 reviews, >4 stars
+    if (venue.xr_y === "found" && venue.yr != null && venue.yr < 100 && venue.yrt != null && venue.yrt > 4) {
+      badges.push({ type: "yelp-gem", label: "Y", color: "#dc2626", cls: "badge-y" });
+    }
+    // New venue: opened less than 1 month ago
+    if (venue.opened && venue.opened >= ONE_MONTH_AGO_STR) {
+      badges.push({ type: "new-venue", label: "\u23F1", color: "#f59e0b", cls: "badge-new" });
+    }
+    // Not on Yelp
+    if (venue.xr_y === "not_found") {
+      badges.push({ type: "not-on-yelp", label: "\u2605", color: "#dc2626", cls: "xr-red" });
+    }
+    // Not on Google
+    if (venue.xr_g === "not_found") {
+      badges.push({ type: "not-on-google", label: "\u2605", color: "#2563eb", cls: "xr-blue" });
+    }
+    return badges;
+  }
+
+  // Legacy compat — returns the top-priority badge for the marker icon
+  function topBadge(venue) {
+    const b = venueBadges(venue);
+    return b.length ? b[0] : null;
   }
 
   function makeIcon(venue) {
@@ -176,15 +214,15 @@
       cls = "vm-letter";
     }
 
-    const star = xrefStar(venue);
-    const starHtml = star ? `<span class="xr-star" style="color:${star.color}">★</span>` : "";
-    const starKey = star ? star.cls : "none";
+    const badge = topBadge(venue);
+    const badgeHtml = badge ? `<span class="xr-star" style="color:${badge.color}">${badge.label}</span>` : "";
+    const badgeKey = badge ? badge.cls : "none";
 
-    const key = `${cls}-${color}-${label}-${starKey}`;
+    const key = `${cls}-${color}-${label}-${badgeKey}`;
     if (!iconCache[key]) {
       iconCache[key] = L.divIcon({
-        className: `venue-marker ${cls}${star ? ' has-star' : ''}`,
-        html: `<span style="color:${color}">${label}</span>${starHtml}`,
+        className: `venue-marker ${cls}${badge ? ' has-star' : ''}`,
+        html: `<span style="color:${color}">${label}</span>${badgeHtml}`,
         iconSize: [16, 16],
         iconAnchor: [8, 8],
       });
@@ -210,12 +248,32 @@
       popupParts.push(`<span class="popup-tags">${v.tags.map(escHtml).join(", ")}</span>`);
     }
     // Cross-ref badges
-    const xr = xrefStar(v);
-    if (xr) {
-      const parts = [];
-      if (v.xr_y === "not_found") parts.push("Yelp");
-      if (v.xr_g === "not_found") parts.push("Google Maps");
-      popupParts.push(`<span class="xr-badge" style="color:${xr.color}">★ Not on ${parts.join(" or ")}</span>`);
+    const badges = venueBadges(v);
+    if (badges.length) {
+      for (const b of badges) {
+        if (b.type === "google-gem") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">G Google hidden gem (${v.grt}★, ${v.gr} reviews)</span>`);
+        } else if (b.type === "yelp-gem") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">Y Yelp hidden gem (${v.yrt}★, ${v.yr} reviews)</span>`);
+        } else if (b.type === "new-venue") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">⏱ Opened ${v.opened}</span>`);
+        } else if (b.type === "not-on-yelp") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Yelp</span>`);
+        } else if (b.type === "not-on-google") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Google Maps</span>`);
+        }
+      }
+    }
+    // Review counts / ratings
+    const reviewParts = [];
+    if (v.yr != null) {
+      reviewParts.push(`Yelp: ${v.yrt != null ? v.yrt + '★' : '?'} (${v.yr} reviews)`);
+    }
+    if (v.gr != null) {
+      reviewParts.push(`Google: ${v.grt != null ? v.grt + '★' : '?'} (${v.gr} reviews)`);
+    }
+    if (reviewParts.length) {
+      popupParts.push(`<span class="popup-reviews">${reviewParts.join(' · ')}</span>`);
     }
 
     const marker = L.marker([v.lat, v.lng], { icon: makeIcon(v) });
@@ -288,51 +346,66 @@
     return div.innerHTML;
   }
 
-  // --- Cross-reference filter ---
-  const xrBtn = document.getElementById("xr-filter-btn");
+  // --- Badge filters ---
   const xrList = document.getElementById("xr-venue-list");
-  let xrActive = false;
+  let activeBadgeFilter = null;
 
-  // Build list of flagged venues
-  const flaggedMarkers = allMarkers.filter(m => xrefStar(m._venue));
-  if (flaggedMarkers.length === 0) {
-    xrBtn.style.display = "none";
-  } else {
-    xrBtn.textContent = `Show only flagged (${flaggedMarkers.length})`;
+  // Precompute badge sets for each filter type
+  function markersForBadge(type) {
+    return allMarkers.filter(m => {
+      const badges = venueBadges(m._venue);
+      if (type === "any") return badges.length > 0;
+      return badges.some(b => b.type === type);
+    });
   }
 
-  xrBtn.addEventListener("click", () => {
-    xrActive = !xrActive;
-    xrBtn.textContent = xrActive
-      ? "Show all venues"
-      : `Show only flagged (${flaggedMarkers.length})`;
-    xrBtn.classList.toggle("active", xrActive);
-    clusterGroup.clearLayers();
-    if (xrActive) {
-      clusterGroup.addLayers(flaggedMarkers);
-      updateCount(flaggedMarkers.length);
-      // Build clickable list
-      xrList.innerHTML = flaggedMarkers.map(m => {
-        const v = m._venue;
-        const star = xrefStar(v);
-        return `<a class="xr-venue-item" data-lat="${v.lat}" data-lng="${v.lng}" style="border-left:3px solid ${star.color}">` +
-          `<span class="xr-star" style="color:${star.color}">★</span> ${escHtml(v.name)}` +
-          `<small>${escHtml(v.address || "")}, ${escHtml(v.borough || "")}</small></a>`;
-      }).join("");
-      // Click to fly to venue
-      xrList.querySelectorAll(".xr-venue-item").forEach((el, i) => {
-        el.addEventListener("click", () => {
-          const lat = parseFloat(el.dataset.lat);
-          const lng = parseFloat(el.dataset.lng);
-          map.setView([lat, lng], 18);
-          flaggedMarkers[i].openPopup();
-        });
-      });
-    } else {
+  // Set up badge filter buttons
+  document.querySelectorAll(".badge-filter-btn").forEach(btn => {
+    const type = btn.dataset.badge;
+    const count = markersForBadge(type).length;
+    btn.innerHTML += ` (${count})`;
+    if (count === 0) btn.style.opacity = "0.4";
+
+    btn.addEventListener("click", () => {
+      const wasActive = btn.classList.contains("active");
+      // Deactivate all
+      document.querySelectorAll(".badge-filter-btn").forEach(b => b.classList.remove("active"));
+      clusterGroup.clearLayers();
       xrList.innerHTML = "";
-      clusterGroup.addLayers(allMarkers);
-      updateCount(allMarkers.length);
-    }
+
+      if (wasActive) {
+        activeBadgeFilter = null;
+        clusterGroup.addLayers(allMarkers);
+        updateCount(allMarkers.length);
+      } else {
+        activeBadgeFilter = type;
+        btn.classList.add("active");
+        const filtered = markersForBadge(type);
+        clusterGroup.addLayers(filtered);
+        updateCount(filtered.length);
+        // Build clickable list
+        xrList.innerHTML = filtered.map(m => {
+          const v = m._venue;
+          const badges = venueBadges(v);
+          const top = type === "any" ? badges[0] : badges.find(b => b.type === type) || badges[0];
+          let detail = "";
+          if (top.type === "google-gem") detail = `${v.grt}★ · ${v.gr} reviews`;
+          else if (top.type === "yelp-gem") detail = `${v.yrt}★ · ${v.yr} reviews`;
+          else if (top.type === "new-venue") detail = `opened ${v.opened}`;
+          return `<a class="xr-venue-item" data-lat="${v.lat}" data-lng="${v.lng}" style="border-left:3px solid ${top.color}">` +
+            `<span class="xr-badge-icon" style="color:${top.color}">${top.label}</span> ${escHtml(v.name)}` +
+            `<small>${detail || escHtml(v.address || "")}</small></a>`;
+        }).join("");
+        xrList.querySelectorAll(".xr-venue-item").forEach((el, i) => {
+          el.addEventListener("click", () => {
+            const lat = parseFloat(el.dataset.lat);
+            const lng = parseFloat(el.dataset.lng);
+            map.setView([lat, lng], 18);
+            filtered[i].openPopup();
+          });
+        });
+      }
+    });
   });
 
   // --- Toggle sidebar on mobile ---

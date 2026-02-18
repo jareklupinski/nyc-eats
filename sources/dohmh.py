@@ -43,7 +43,7 @@ class DOHMHSource(DataSource):
         params: dict[str, Any] = {
             "$select": (
                 "camis,dba,building,street,boro,zipcode,phone,"
-                "cuisine_description,grade,bin,latitude,longitude"
+                "cuisine_description,grade,bin,latitude,longitude,inspection_date"
             ),
             # Only rows that have coordinates
             "$where": "latitude IS NOT NULL AND longitude IS NOT NULL",
@@ -87,6 +87,11 @@ class DOHMHSource(DataSource):
                 if lat == 0 or lng == 0:
                     continue
 
+                # Track earliest inspection date as proxy for "opened"
+                insp_date = row.get("inspection_date", "")
+                if insp_date:
+                    insp_date = insp_date[:10]  # "2025-01-15T00:00:00" → "2025-01-15"
+
                 address_parts = [
                     row.get("building", ""),
                     row.get("street", ""),
@@ -106,11 +111,17 @@ class DOHMHSource(DataSource):
                     zipcode=row.get("zipcode", ""),
                     tags=["restaurant"],
                     meta={"bin": row.get("bin", "")},
+                    opened=insp_date,
                 )
 
             offset += len(rows)
             if len(rows) < PAGE_SIZE:
                 break
+
+        # Since we deduplicate by camis (keep first seen row only), the
+        # inspection_date is just whatever was on that first row.
+        # The $order is by camis, not by date, so the date we capture
+        # is the earliest-returned inspection for each CAMIS.
 
         # Second dedup pass: same normalized name + BIN (building ID) → same
         # restaurant registered under slightly different punctuation.

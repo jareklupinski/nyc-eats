@@ -39,7 +39,8 @@ COUNTY_TO_BORO = {
 # Fields to request (keeps response smaller)
 OUT_FIELDS = (
     "PremiseName,PremiseDBA,Description,PremiseAddress1,PremiseCity,"
-    "CountyName,LicenseCla,LicensePermitID,PremiseZIP,Latitude,Longitude"
+    "CountyName,LicenseCla,LicensePermitID,PremiseZIP,Latitude,Longitude,"
+    "Lic_Original_Date"
 )
 
 
@@ -114,6 +115,16 @@ class SLASource(DataSource):
 
                 display_name = attrs.get("PremiseDBA") or attrs.get("PremiseName") or "Unknown"
 
+                # Lic_Original_Date is epoch ms from ArcGIS
+                opened = ""
+                orig_ts = attrs.get("Lic_Original_Date")
+                if orig_ts:
+                    try:
+                        from datetime import datetime, timezone
+                        opened = datetime.fromtimestamp(orig_ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                    except (ValueError, TypeError, OSError):
+                        pass
+
                 venues.append(
                     Venue(
                         name=display_name.title(),
@@ -128,6 +139,7 @@ class SLASource(DataSource):
                             "license_type": license_desc,
                             "license_id": attrs.get("LicensePermitID", ""),
                         },
+                        opened=opened,
                     )
                 )
 
