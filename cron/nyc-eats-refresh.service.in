@@ -6,6 +6,9 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User={{VPS_USER}}
+Environment=NYC_EATS_REPO={{VPS_REPO}}
+Environment=NYC_EATS_SERVE={{VPS_PATH}}/dist
+Environment=NYC_EATS_LOG={{VPS_PATH}}/refresh.log
 ExecStart={{VPS_REPO}}/cron/nyc-eats-refresh
 StandardOutput=append:{{VPS_PATH}}/refresh.log
 StandardError=append:{{VPS_PATH}}/refresh.log

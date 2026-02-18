@@ -123,6 +123,17 @@ button {
   border-top: 2px solid #d1d5db;
   border-bottom: none;
 }
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.github-link:hover { color: #111827; }
+.github-link svg { vertical-align: middle; }
 
 /* --- Map --- */
 #map {
