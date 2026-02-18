@@ -92,6 +92,10 @@ def init_db() -> sqlite3.Connection:
         ("yelp_rating",       "REAL"),
         ("google_rating_count", "INTEGER"),
         ("google_rating",       "REAL"),
+        ("google_lat",          "REAL"),
+        ("google_lng",          "REAL"),
+        ("yelp_lat",            "REAL"),
+        ("yelp_lng",            "REAL"),
     ]
     for col, typ in migrations:
         if col not in existing_cols:
@@ -170,6 +174,7 @@ def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
             yelp_id = yelp_url = None
             review_count = None
             yelp_rating = None
+            y_lat = y_lng = None
             for biz in resp.json().get("businesses", []):
                 if _name_similarity(name, biz.get("name", "")) >= 0.45:
                     found = True
@@ -177,16 +182,21 @@ def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
                     yelp_url = biz.get("url")
                     review_count = biz.get("review_count")
                     yelp_rating = biz.get("rating")
+                    coords = biz.get("coordinates", {})
+                    y_lat = coords.get("latitude")
+                    y_lng = coords.get("longitude")
                     break
 
             conn.execute(
                 "UPDATE crossref SET yelp_status=?, yelp_checked_at=?, "
-                "yelp_business_id=?, yelp_url=?, yelp_review_count=?, yelp_rating=? "
+                "yelp_business_id=?, yelp_url=?, yelp_review_count=?, yelp_rating=?, "
+                "yelp_lat=?, yelp_lng=? "
                 "WHERE venue_key=?",
                 (
                     "found" if found else "not_found",
                     datetime.now(timezone.utc).isoformat(),
-                    yelp_id, yelp_url, review_count, yelp_rating, key,
+                    yelp_id, yelp_url, review_count, yelp_rating,
+                    y_lat, y_lng, key,
                 ),
             )
         except requests.RequestException as exc:
@@ -258,7 +268,7 @@ def check_google(
                 params={
                     "input": f"{name}, {address}, New York, NY",
                     "inputtype": "textquery",
-                    "fields": "place_id,name,formatted_address,rating,user_ratings_total",
+                    "fields": "place_id,name,formatted_address,rating,user_ratings_total,geometry",
                     "key": GOOGLE_API_KEY,
                 },
                 timeout=15,
@@ -270,15 +280,22 @@ def check_google(
             place_id = candidates[0].get("place_id") if found else None
             g_rating = candidates[0].get("rating") if found else None
             g_rating_count = candidates[0].get("user_ratings_total") if found else None
+            g_lat = g_lng = None
+            if found:
+                geom = candidates[0].get("geometry", {}).get("location", {})
+                g_lat = geom.get("lat")
+                g_lng = geom.get("lng")
 
             conn.execute(
                 "UPDATE crossref SET google_status=?, google_checked_at=?, "
-                "google_place_id=?, google_rating=?, google_rating_count=? "
+                "google_place_id=?, google_rating=?, google_rating_count=?, "
+                "google_lat=?, google_lng=? "
                 "WHERE venue_key=?",
                 (
                     "found" if found else "not_found",
                     datetime.now(timezone.utc).isoformat(),
-                    place_id, g_rating, g_rating_count, key,
+                    place_id, g_rating, g_rating_count,
+                    g_lat, g_lng, key,
                 ),
             )
         except requests.RequestException as exc:
@@ -337,10 +354,13 @@ def backfill_yelp(conn: sqlite3.Connection, limit: int = 500) -> int:
                 return filled
             resp.raise_for_status()
             biz = resp.json()
+            coords = biz.get("coordinates", {})
             conn.execute(
-                "UPDATE crossref SET yelp_review_count=?, yelp_rating=? "
+                "UPDATE crossref SET yelp_review_count=?, yelp_rating=?, "
+                "yelp_lat=?, yelp_lng=? "
                 "WHERE venue_key=?",
-                (biz.get("review_count"), biz.get("rating"), key),
+                (biz.get("review_count"), biz.get("rating"),
+                 coords.get("latitude"), coords.get("longitude"), key),
             )
         except requests.RequestException as exc:
             log.error("Yelp backfill error for %s: %s", biz_id, exc)
@@ -381,17 +401,20 @@ def backfill_google(conn: sqlite3.Connection, limit: int = 500) -> int:
                 "https://maps.googleapis.com/maps/api/place/details/json",
                 params={
                     "place_id": place_id,
-                    "fields": "rating,user_ratings_total",
+                    "fields": "rating,user_ratings_total,geometry",
                     "key": GOOGLE_API_KEY,
                 },
                 timeout=15,
             )
             resp.raise_for_status()
             result = resp.json().get("result", {})
+            geom = result.get("geometry", {}).get("location", {})
             conn.execute(
-                "UPDATE crossref SET google_rating=?, google_rating_count=? "
+                "UPDATE crossref SET google_rating=?, google_rating_count=?, "
+                "google_lat=?, google_lng=? "
                 "WHERE venue_key=?",
-                (result.get("rating"), result.get("user_ratings_total"), key),
+                (result.get("rating"), result.get("user_ratings_total"),
+                 geom.get("lat"), geom.get("lng"), key),
             )
         except requests.RequestException as exc:
             log.error("Google backfill error for %s: %s", place_id, exc)
@@ -408,18 +431,129 @@ def backfill_google(conn: sqlite3.Connection, limit: int = 500) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Backfill coordinates — re-fetch coords for 'found' venues missing lat/lng
+# ---------------------------------------------------------------------------
+
+def backfill_coords_google(conn: sqlite3.Connection, limit: int = 1000) -> int:
+    """Re-fetch geometry for Google 'found' venues missing coordinates."""
+    if not GOOGLE_API_KEY:
+        log.warning("GOOGLE_API_KEY not set — skipping coord backfill")
+        return 0
+
+    rows = conn.execute(
+        "SELECT venue_key, google_place_id FROM crossref "
+        "WHERE google_status = 'found' AND google_place_id IS NOT NULL "
+        "AND google_lat IS NULL LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        log.info("Google coord backfill: nothing to do")
+        return 0
+
+    log.info("Google coord backfill: %d venues", len(rows))
+    filled = 0
+
+    for key, place_id in rows:
+        try:
+            resp = requests.get(
+                "https://maps.googleapis.com/maps/api/place/details/json",
+                params={
+                    "place_id": place_id,
+                    "fields": "geometry",
+                    "key": GOOGLE_API_KEY,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            result = resp.json().get("result", {})
+            geom = result.get("geometry", {}).get("location", {})
+            if geom.get("lat") and geom.get("lng"):
+                conn.execute(
+                    "UPDATE crossref SET google_lat=?, google_lng=? WHERE venue_key=?",
+                    (geom["lat"], geom["lng"], key),
+                )
+                filled += 1
+        except requests.RequestException as exc:
+            log.error("Google coord backfill error for %s: %s", place_id, exc)
+
+        if filled % 100 == 0 and filled > 0:
+            conn.commit()
+            log.info("Google coord backfill: %d / %d", filled, len(rows))
+        time.sleep(1.0 / GOOGLE_QPS)
+
+    conn.commit()
+    log.info("Google coord backfill: finished %d", filled)
+    return filled
+
+
+def backfill_coords_yelp(conn: sqlite3.Connection, limit: int = 1000) -> int:
+    """Re-fetch coordinates for Yelp 'found' venues missing lat/lng."""
+    if not YELP_API_KEY:
+        log.warning("YELP_API_KEY not set — skipping coord backfill")
+        return 0
+
+    rows = conn.execute(
+        "SELECT venue_key, yelp_business_id FROM crossref "
+        "WHERE yelp_status = 'found' AND yelp_business_id IS NOT NULL "
+        "AND yelp_lat IS NULL LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        log.info("Yelp coord backfill: nothing to do")
+        return 0
+
+    log.info("Yelp coord backfill: %d venues", len(rows))
+    headers = {"Authorization": f"Bearer {YELP_API_KEY}"}
+    filled = 0
+
+    for key, biz_id in rows:
+        try:
+            resp = requests.get(
+                f"https://api.yelp.com/v3/businesses/{biz_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if resp.status_code == 429:
+                log.warning("Yelp coord backfill rate-limited after %d", filled)
+                conn.commit()
+                return filled
+            resp.raise_for_status()
+            biz = resp.json()
+            coords = biz.get("coordinates", {})
+            if coords.get("latitude") and coords.get("longitude"):
+                conn.execute(
+                    "UPDATE crossref SET yelp_lat=?, yelp_lng=? WHERE venue_key=?",
+                    (coords["latitude"], coords["longitude"], key),
+                )
+                filled += 1
+        except requests.RequestException as exc:
+            log.error("Yelp coord backfill error for %s: %s", biz_id, exc)
+
+        if filled % 100 == 0 and filled > 0:
+            conn.commit()
+            log.info("Yelp coord backfill: %d / %d", filled, len(rows))
+        time.sleep(1.0 / YELP_QPS)
+
+    conn.commit()
+    log.info("Yelp coord backfill: finished %d", filled)
+    return filled
+
+
+# ---------------------------------------------------------------------------
 # Read helpers (used by build.py)
 # ---------------------------------------------------------------------------
 
 def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
-    """Return {venue_key: {yelp, google, review counts, ratings}} for all checked venues."""
+    """Return {venue_key: {yelp, google, review counts, ratings, coords}} for all checked venues."""
     flags: dict[str, dict] = {}
     for row in conn.execute(
         "SELECT venue_key, yelp_status, google_status, yelp_url, "
-        "yelp_review_count, yelp_rating, google_rating_count, google_rating "
+        "yelp_review_count, yelp_rating, google_rating_count, google_rating, "
+        "google_lat, google_lng, yelp_lat, yelp_lng "
         "FROM crossref"
     ):
-        key, yelp_st, google_st, yelp_url, y_rc, y_rat, g_rc, g_rat = row
+        (key, yelp_st, google_st, yelp_url, y_rc, y_rat, g_rc, g_rat,
+         g_lat, g_lng, y_lat, y_lng) = row
         flags[key] = {
             "yelp": yelp_st,
             "google": google_st,
@@ -428,6 +562,10 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
             "yelp_rating": y_rat,
             "google_reviews": g_rc,
             "google_rating": g_rat,
+            "google_lat": g_lat,
+            "google_lng": g_lng,
+            "yelp_lat": y_lat,
+            "yelp_lng": y_lng,
         }
     return flags
 
@@ -508,6 +646,8 @@ def main():
     parser.add_argument("--stats", action="store_true", help="Print stats and exit")
     parser.add_argument("--backfill", action="store_true",
                         help="Re-check 'found' venues missing review counts")
+    parser.add_argument("--backfill-coords", action="store_true",
+                        help="Re-fetch coordinates for 'found' venues missing lat/lng")
     parser.add_argument("--backfill-limit", type=int, default=500,
                         help="Max venues to backfill per run")
     args = parser.parse_args()
@@ -536,6 +676,16 @@ def main():
             if "hidden_gems_candidates" in d:
                 print(f"  Hidden gem candidates (<50 reviews, ≥4.0★): "
                       f"{d['hidden_gems_candidates']} ({d['hidden_gems_pct']}% of low-review)")
+        # Coordinate stats
+        for svc, lat_col in [("Google", "google_lat"), ("Yelp", "yelp_lat")]:
+            status_col = f"{svc.lower()}_status"
+            total_found = conn.execute(
+                f"SELECT COUNT(*) FROM crossref WHERE {status_col} = 'found'"
+            ).fetchone()[0]
+            has_coords = conn.execute(
+                f"SELECT COUNT(*) FROM crossref WHERE {status_col} = 'found' AND {lat_col} IS NOT NULL"
+            ).fetchone()[0]
+            print(f"\n{svc} coordinates: {has_coords:,} / {total_found:,} found venues have coords")
         conn.close()
         return
 
@@ -557,6 +707,15 @@ def main():
         google_n = backfill_google(conn, limit=args.backfill_limit)
         elapsed = time.time() - t0
         log.info("Backfill: yelp=%d, google=%d in %.1fs", yelp_n, google_n, elapsed)
+        conn.close()
+        return
+
+    if args.backfill_coords:
+        t0 = time.time()
+        google_n = backfill_coords_google(conn, limit=args.backfill_limit)
+        yelp_n = backfill_coords_yelp(conn, limit=args.backfill_limit)
+        elapsed = time.time() - t0
+        log.info("Coord backfill: google=%d, yelp=%d in %.1fs", google_n, yelp_n, elapsed)
         conn.close()
         return
 

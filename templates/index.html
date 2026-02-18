@@ -156,7 +156,13 @@
     chunkedLoading: true,        // don't freeze the UI
     chunkInterval: 100,
     chunkDelay: 10,
-    maxClusterRadius: 50,
+    maxClusterRadius: function(zoom) {
+      // Aggressive clustering at low zoom, minimal at street level
+      if (zoom >= 18) return 5;
+      if (zoom >= 16) return 15;
+      if (zoom >= 14) return 30;
+      return 50;
+    },
     spiderfyOnMaxZoom: true,
     spiderfyOnEveryZoom: true,
     spiderfyDistanceMultiplier: 1.5,

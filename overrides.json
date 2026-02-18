@@ -1,0 +1,1416 @@
+{
+  "_comment": "Manual overrides for known data quality issues in source APIs. Each entry describes a venue with incorrect coordinates that should be dropped. These are auto-detected by borough bounding box validation but listed here explicitly so the corrections are transparent and auditable. If you are adapting this project for a different region, you can safely delete this file or replace it with your own overrides -- the build will still run the bbox validation automatically.",
+  "generated": "2026-02-18",
+  "overrides": [
+    {
+      "name": "Fauzia'S Heavenly Delights",
+      "address": "517 CLAYTON ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691054,
+      "bad_lng": -74.019624,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Joe'S Coffee Company (Governors Island",
+      "address": "517 CLAYTON ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691054,
+      "bad_lng": -74.019624,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "People'S Pops (Governor'S Island)",
+      "address": "517 CLAYTON ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691054,
+      "bad_lng": -74.019624,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Qc Ny Spa (Governors Island)",
+      "address": "112 ANDES ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.692651,
+      "bad_lng": -74.017886,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Taco Vista (Governors Island)",
+      "address": "125 CARDER ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691444,
+      "bad_lng": -74.012974,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "The Art Center Cafe(Governors Island)",
+      "address": "110 ANDES ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.692544,
+      "bad_lng": -74.016281,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "The Meat Hook (Governors Island)",
+      "address": "517 CLAYTON ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691054,
+      "bad_lng": -74.019624,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Threes Brewing (Governors Island)",
+      "address": "517 CLAYTON ROAD",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691054,
+      "bad_lng": -74.019624,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "White Oak Tavern (Governors Island)",
+      "address": "515 WHEELER AVENUE",
+      "borough": "Manhattan",
+      "action": "drop_coords",
+      "bad_lat": 40.691509,
+      "bad_lng": -74.018993,
+      "source": "dohmh",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "2 Kings Deli Grocery Inc",
+      "address": "27-21 24TH AVE",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.773663,
+      "bad_lng": -73.917014,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "231 Big Apple Deli Grocery Corporation",
+      "address": "141 W 231ST ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.878205,
+      "bad_lng": -73.902497,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "485 Kings Corp",
+      "address": "485 KINGS HGWY",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.604284,
+      "bad_lng": -73.971684,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "7 Eleven Store #39392B",
+      "address": "201 E 28TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.64469,
+      "bad_lng": -73.95096,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "9Th Ave Tobacco & Smoke Shop",
+      "address": "334 9TH AVE",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.75027,
+      "bad_lng": -73.9982,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Acosta Deli Restaurant, Inc.",
+      "address": "934A AMSTERDAM AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.783777,
+      "bad_lng": -72.963487,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Amc Theatres Bay Plaza 13",
+      "address": "2210 BARTOW AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.867439,
+      "bad_lng": -73.825288,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Arlo Nomad; Art Nomad; Nomad Diner",
+      "address": "11 E 31ST ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.65044,
+      "bad_lng": -73.94839,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Astoria Convenience & Smoke Shop",
+      "address": "45-20 30TH AVE",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.87373,
+      "bad_lng": -73.88982,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bar Verde",
+      "address": "65 2ND AVENUE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.79987,
+      "bad_lng": -73.81922,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Barker",
+      "address": "395 Nostrand Ave",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.684258,
+      "bad_lng": -73.95021,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bleecker Street Pizza",
+      "address": "69 71 7TH AVE S",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.636,
+      "bad_lng": -74.03375,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bluestone Lane",
+      "address": "435 W 31ST ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.57716,
+      "bad_lng": -73.99777,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bolla 1214 Grand Ave C-Store",
+      "address": "1214 GRAND AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68068,
+      "bad_lng": -73.61526,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bolla 1589 Merrick C-Store",
+      "address": "1589 MERRICK RD W",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.65426,
+      "bad_lng": -73.56308,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bolla 2084 C-Store",
+      "address": "2084 JERICHO TPKE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.844259,
+      "bad_lng": -73.276562,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bolla 3285 Hempstead Tpke C-Store",
+      "address": "3285 HEMPSTEAD TPKE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.726393,
+      "bad_lng": -73.514857,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bolla 4030 Seaford C-Store",
+      "address": "4030 MERRICK RD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66653,
+      "bad_lng": -73.4838,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bolla 579 Hempstead Tpke C-Store",
+      "address": "579 HEMPSTEAD TPKE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.70588,
+      "bad_lng": -73.66087,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bon Chon Chicken",
+      "address": "325 5TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67243,
+      "bad_lng": -73.98327,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Bridge Fresh Inc",
+      "address": "68 B JAY ST",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 43.647998,
+      "bad_lng": -73.799815,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Brooklyn Kura",
+      "address": "68 34TH ST",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.75924,
+      "bad_lng": -73.92449,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Buona Pizza Restaurant Corp",
+      "address": "3213 BEACH CHANNEL DR",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.597913,
+      "bad_lng": -73.765996,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "C-Town",
+      "address": "5249 BROADWAY",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 42.901214,
+      "bad_lng": -78.683174,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Cafe St. Marks Llc",
+      "address": "430 Saint Marks Pl",
+      "borough": "STATEN ISLAND",
+      "action": "drop_coords",
+      "bad_lat": 40.728713,
+      "bad_lng": -73.986945,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Chatham Imports Inc",
+      "address": "245 5TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.6748,
+      "bad_lng": -73.9812,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Chipotle Mexican Grill#2291",
+      "address": "1 NEW YORK PLAZA",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.62185,
+      "bad_lng": -74.12916,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Chuck E. Cheese'S #516",
+      "address": "4408 Milestrip Rd",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 42.789939,
+      "bad_lng": -78.813814,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Chuck E. Cheese'S #526",
+      "address": "3033 Erie Blvd E",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 43.056176,
+      "bad_lng": -76.085009,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Chuck E. Cheese'S #839",
+      "address": "3130 W Ridge Rd",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 43.212111,
+      "bad_lng": -77.71212,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Chuck E. Cheese'S #849",
+      "address": "255 W Route 59",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 41.098887,
+      "bad_lng": -74.022449,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "City Winery New York",
+      "address": "25 11TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.78802,
+      "bad_lng": -73.83663,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Classic Wines Inc",
+      "address": "31 61B 33RD ST",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.657848,
+      "bad_lng": -74.005632,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Cornell Univ & Galaxy Rest'S Catering Group Lp",
+      "address": "2 W LOOP RD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.5895,
+      "bad_lng": -74.10323,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Courtside Lounge",
+      "address": "69 08 MYRTLE AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 42.880133,
+      "bad_lng": -78.869148,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Courtyard By Marriott-Central Park/Residence Inn",
+      "address": "1717 BROADWAY",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68353,
+      "bad_lng": -73.91132,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Crown Grocery",
+      "address": "2215A 7TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 43.198543,
+      "bad_lng": -75.728631,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Cvs/Pharmacy # 10610",
+      "address": "143 RTE 303",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 41.12239,
+      "bad_lng": -73.942572,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Cvs/Pharmacy #10530",
+      "address": "475 6TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66692,
+      "bad_lng": -73.98469,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Cvs/Pharmacy #10612",
+      "address": "65 5TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68058,
+      "bad_lng": -73.97731,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Don Antonio Pizzeria",
+      "address": "309 W 50th St",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.762646,
+      "bad_lng": -73.986668,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Dos Toros",
+      "address": "636 LEXINGTON AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68944,
+      "bad_lng": -73.93444,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Dyckman Beer Company",
+      "address": "2927 QUEENS PLAZA NORTH, #301",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.749854,
+      "bad_lng": -73.937682,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Eataly",
+      "address": "FLATIRON PUBLIC PLAZA NORTH",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.69615,
+      "bad_lng": -73.9335,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Eataly Vino Nyc,Eataly Vino,Eataly Nyc Flatiron",
+      "address": "200 5TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67675,
+      "bad_lng": -73.98049,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Elevation Wine Partners Llc",
+      "address": "40 W 37TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.57608,
+      "bad_lng": -74.00326,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Enchanted Princess",
+      "address": "72 Bowne St",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.682372,
+      "bad_lng": -74.007469,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Enoclassica Selection",
+      "address": "175 MEMORIAL HWY",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.913526,
+      "bad_lng": -73.786003,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Estrella Del Caribe Corp",
+      "address": "745 E 136TH ST",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.803121,
+      "bad_lng": -73.912444,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Evelyn Hill Inc",
+      "address": "ELLIS ISLAND",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.699116,
+      "bad_lng": -74.039548,
+      "source": "sla",
+      "note": "Ellis Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Ez Grocery Inc",
+      "address": "4021 7TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.647921,
+      "bad_lng": -74.000201,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Flik International Corp.",
+      "address": "JFK INT'L AIRPORT TERM 4",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 41.049581,
+      "bad_lng": -73.689087,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Fork And Knife Catering Company Llc",
+      "address": "98 100 ALLEN ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 44.707901,
+      "bad_lng": -73.453809,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Freshdirect",
+      "address": "2 ST ANNS AVE",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.80291,
+      "bad_lng": -73.9202,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Friedmans",
+      "address": "75 9TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66814,
+      "bad_lng": -73.97429,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Fruit Of The Vines Inc",
+      "address": "51 02 VERNON BLVD",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 42.845058,
+      "bad_lng": -73.974655,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Global Farm Marketplace",
+      "address": "1389 Broadway",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.689036,
+      "bad_lng": -73.921115,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Goose Barnacle Llc",
+      "address": "91 ATLANTIC AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.69119,
+      "bad_lng": -73.99724,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Great Performances/Artists As Waitresses, Inc.",
+      "address": "651 FULTON STREET",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68823,
+      "bad_lng": -73.979072,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "H Mart",
+      "address": "35 3RD AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.79825,
+      "bad_lng": -73.81717,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Heights Deli Corp",
+      "address": "504 Pennsylvania Ave",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.664988,
+      "bad_lng": -73.894301,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Hillside Convenience & Smoke Inc",
+      "address": "1594 Hillside Ave",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.747974,
+      "bad_lng": -73.685373,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Historia Imports Llc",
+      "address": "40 W 37TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.57608,
+      "bad_lng": -74.00326,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Hollywood Diner",
+      "address": "574 6TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66348,
+      "bad_lng": -73.98802,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Hotel Llc/ Dba Paris Cafe",
+      "address": "JFK INTERNATIONAL AIRPORT",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.645514,
+      "bad_lng": -73.777951,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Hwa Yuan Szechuan",
+      "address": "42 44 E BROADWAY",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67825,
+      "bad_lng": -73.93587,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Hyatt House New York/Chelsea",
+      "address": "815 AVENUE OF THE AMERICAS",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.61495,
+      "bad_lng": -73.96607,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Island Mini Market Deli Inc",
+      "address": "2031 Forest Ave",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.626502,
+      "bad_lng": -74.157072,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Jai Dee Restaurant",
+      "address": "420 7TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.664109,
+      "bad_lng": -73.984095,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Jetblue Airways Corporation & Swissport Usa Inc",
+      "address": "JFK International Airport",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.644612,
+      "bad_lng": -73.779728,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Jg Melon",
+      "address": "89 MACDOUGAL ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67962,
+      "bad_lng": -73.91853,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "K & S Grocery Deli Corp",
+      "address": "1403 FULTON ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68027,
+      "bad_lng": -73.944997,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Key Food",
+      "address": "2343 JEROME AVE",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.85962,
+      "bad_lng": -73.903351,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "King Chop Cheese Deli And Grocery Corp",
+      "address": "1977 HUGHES AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.846536,
+      "bad_lng": -73.892041,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Kings Port Richmond C-Store",
+      "address": "387 PORT RICHMOND AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.632589,
+      "bad_lng": -74.137062,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "L'Americana",
+      "address": "51 IRVING PL",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68353,
+      "bad_lng": -73.95979,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "La Masseria",
+      "address": "235 237 W 48TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.649706,
+      "bad_lng": -74.014856,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "La Parada Latina Food Corp",
+      "address": "3822 3RD AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.83784,
+      "bad_lng": -73.90126,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "La Pecora Bianca",
+      "address": "1133 BROADWAY - STORE A",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.69362,
+      "bad_lng": -73.92918,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Le Chai",
+      "address": "1904 UTICA AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.625358,
+      "bad_lng": -73.927761,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Lucky Zhang 888",
+      "address": "6018 7TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.636497,
+      "bad_lng": -74.012311,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Luke'S Lobster",
+      "address": "685 3RD AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66383,
+      "bad_lng": -73.99709,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Maharaja Lounge",
+      "address": "JFK INTERNATIONAL AIRPORT",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.643287,
+      "bad_lng": -73.779328,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Makina Cafe Llc",
+      "address": "416 clayton road",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.690327,
+      "bad_lng": -74.019039,
+      "source": "sla",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Martingale Cognac",
+      "address": "120 Kisco Ave",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 41.213232,
+      "bad_lng": -73.727613,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Mike'S Bistro",
+      "address": "127 E 54TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.65596,
+      "bad_lng": -73.92663,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Mokbar Llc",
+      "address": "75 9TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66814,
+      "bad_lng": -73.97429,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Momoya Chelsea",
+      "address": "185 7TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67121,
+      "bad_lng": -73.97778,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "New York Beverage Wholesalers Corp",
+      "address": "515 BRUCKNER BLVD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.810265,
+      "bad_lng": -73.902651,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "O Ramen",
+      "address": "579 6TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66353,
+      "bad_lng": -73.98749,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "O\u007f Sfizio",
+      "address": "4651 Hylan Blvd",
+      "borough": "STATEN ISLAND",
+      "action": "drop_coords",
+      "bad_lat": 42.946347,
+      "bad_lng": -76.429015,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Peck'S",
+      "address": "455A MYRTLE AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.693325,
+      "bad_lng": -73.967125,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Piccolo Sogno Pizzeria-Trattoria Corp",
+      "address": "195 14 47TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.752488,
+      "bad_lng": -73.78592,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Piko Riko Deli Llc",
+      "address": "1435 CENTRAL AVE",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.605791,
+      "bad_lng": -73.750967,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Proluck Ny Corp.",
+      "address": "154-08 Northern Blvd",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.764527,
+      "bad_lng": 73.810657,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Proof Of Concept Llc",
+      "address": "86 34TH ST",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.7588,
+      "bad_lng": -73.92481,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Prova Pizzabar",
+      "address": "89 E 42ND ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.65387,
+      "bad_lng": -73.93821,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Qc Ny",
+      "address": "112 ANDES RD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.692727,
+      "bad_lng": -74.017905,
+      "source": "sla",
+      "note": "Governors Island: administratively Manhattan but coords fall outside Manhattan bbox"
+    },
+    {
+      "name": "Ralph Food Center Inc",
+      "address": "1061 RALPH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.649431,
+      "bad_lng": -73.920246,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Restaurant Depot",
+      "address": "1966 BROADHOLLOW RD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.744718,
+      "bad_lng": -73.422828,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Rndc New York Llc",
+      "address": "570 Lexington Ave",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 41.021378,
+      "bad_lng": -73.729663,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Roosevelt Fruits & Vegetables",
+      "address": "97 02 04 ROOSEVELT AVENUE",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 43.010327,
+      "bad_lng": -78.879927,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "S K I Wholesale Beer Corp",
+      "address": "187A GARDNER AVENUE",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 42.439574,
+      "bad_lng": -79.353349,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Santos Deli Grocery",
+      "address": "5612 CHURCH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.652508,
+      "bad_lng": -73.924511,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Saxelby Cheesemongers",
+      "address": "75 9TH AVE (CHELSEA MARKET)",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68131,
+      "bad_lng": -74.00928,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Scorpion Bar",
+      "address": "75 16 ROOSEVELT AVENUE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.746905,
+      "bad_lng": -73.890326,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Shaking Crab",
+      "address": "2179 WHITE PLAINS RD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.855968,
+      "bad_lng": -73.86786,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Shifka",
+      "address": "324 Bowery",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.725479,
+      "bad_lng": -73.992366,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Shoprite Of Hylan Blvd",
+      "address": "2656 HYLAN BLVD",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 40.56897,
+      "bad_lng": -74.11109,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Sool",
+      "address": "43-27 220TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.761941,
+      "bad_lng": -73.761964,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Spirit Animal",
+      "address": "20 BROADWAY",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.76466,
+      "bad_lng": -73.93105,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Store 14128",
+      "address": "386 FULTON ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.691364,
+      "bad_lng": -73.987271,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Taco Bell Cantina",
+      "address": "1359 BROADWAY",
+      "borough": "BROOKLYN",
+      "action": "drop_coords",
+      "bad_lat": 40.7518,
+      "bad_lng": -73.98777,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Taco Bell Cantina",
+      "address": "363 E FORDHAM RD",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.861908,
+      "bad_lng": -73.892534,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Takumi Taco Llc",
+      "address": "75 9TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66814,
+      "bad_lng": -73.97429,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Thai @ Lex",
+      "address": "1244 LEXINGTON AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.68738,
+      "bad_lng": -73.95207,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "The Beer Connection",
+      "address": "31 07B STARR AVENUE",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 42.1058,
+      "bad_lng": -75.924223,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "The Cull & Pistol",
+      "address": "75 9TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.66814,
+      "bad_lng": -73.97429,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "The Factory 380",
+      "address": "380 3RD AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67241,
+      "bad_lng": -73.98289,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "The Manhanttan",
+      "address": "353 West St Pier 40",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.683134,
+      "bad_lng": -74.011043,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "The Manhattan Ii",
+      "address": "353 West St",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.683174,
+      "bad_lng": -74.010968,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "The Ritz Carlton Hotel Company Llc- Ritz Carlton",
+      "address": "1185 BROADWAY-LOBBY BAR",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.6926,
+      "bad_lng": -73.92724,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Threes Brewing",
+      "address": "20 CLINTON AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.87202,
+      "bad_lng": -73.4286,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Top Line Wine & Liquors Inc",
+      "address": "78 03A ROOSEVELT AVENUE",
+      "borough": "QUEENS",
+      "action": "drop_coords",
+      "bad_lat": 43.01022,
+      "bad_lng": -78.879893,
+      "source": "sla",
+      "note": "Coordinates point far outside NYC (likely wrong location in source data)"
+    },
+    {
+      "name": "Trader Joes #546",
+      "address": "436 E 14TH ST",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.63919,
+      "bad_lng": -73.96516,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Tulum Night Club",
+      "address": "4202 2ND AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.653585,
+      "bad_lng": -74.012349,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Vasquez Deli Grocery",
+      "address": "1959 63 CLINTON AVENUE",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.719489,
+      "bad_lng": -73.984932,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Viking Mars",
+      "address": "711 23TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.768197,
+      "bad_lng": -73.875096,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Vinaio Imports Ltd",
+      "address": "608A Tiffany St Unit 2",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.742011,
+      "bad_lng": -73.935437,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Whisk & Whiskey Llc",
+      "address": "259 4TH AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.67584,
+      "bad_lng": -73.983878,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Wokuni",
+      "address": "327 LEXINGTON AVE",
+      "borough": "MANHATTAN",
+      "action": "drop_coords",
+      "bad_lat": 40.688,
+      "bad_lng": -73.94959,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    },
+    {
+      "name": "Yadiel Grocery Store Corp.",
+      "address": "670 Barretto St",
+      "borough": "BRONX",
+      "action": "drop_coords",
+      "bad_lat": 40.858639,
+      "bad_lng": -73.086664,
+      "source": "sla",
+      "note": "Coordinates placed in wrong borough (geocoding error in source data)"
+    }
+  ]
+}

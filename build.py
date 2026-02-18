@@ -20,6 +20,7 @@ import logging
 import shutil
 import time
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -281,9 +282,10 @@ def merge_cross_source(venues: list[dict]) -> tuple[list[dict], dict]:
     still_dohmh = [v for v in unmatched_dohmh if id(v) not in range_merged_dohmh]
 
     # --- Pass 3: geo-proximity fallback ---
-    # Wider radius (30m) is safe because we prefer matches sharing the same
-    # zip code and only fall through to geo-only when text matching failed.
+    # Within 30m AND names must be somewhat similar (≥0.35) to avoid merging
+    # different businesses that happen to be on the same block.
     GEO_RADIUS_M = 30
+    GEO_NAME_THRESHOLD = 0.35
     CELL = 0.0003  # ~33m grid cells for fast lookup
 
     dohmh_geo_grid: dict[tuple[int, int], list[dict]] = defaultdict(list)
@@ -303,6 +305,7 @@ def merge_cross_source(venues: list[dict]) -> tuple[list[dict], dict]:
         cell = (int(lat / CELL), int(lng / CELL))
         best_dist = float("inf")
         best_match = None
+        sla_name = _normalize(sla_v.get("name", ""))
         for di in (-1, 0, 1):
             for dj in (-1, 0, 1):
                 for dv in dohmh_geo_grid.get((cell[0] + di, cell[1] + dj), []):
@@ -310,8 +313,13 @@ def merge_cross_source(venues: list[dict]) -> tuple[list[dict], dict]:
                         continue
                     d = _haversine_m(lat, lng, dv["lat"], dv["lng"])
                     if d < best_dist:
-                        best_dist = d
-                        best_match = dv
+                        # Require some name similarity to avoid merging
+                        # completely different businesses
+                        dohmh_name = _normalize(dv.get("name", ""))
+                        sim = SequenceMatcher(None, sla_name, dohmh_name).ratio()
+                        if sim >= GEO_NAME_THRESHOLD:
+                            best_dist = d
+                            best_match = dv
         if best_dist <= GEO_RADIUS_M and best_match is not None:
             merged.append(_make_combined(best_match, sla_v))
             geo_merged_sla.add(id(sla_v))
@@ -408,9 +416,73 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
     all_venues, merge_stats = merge_cross_source(all_venues)
     log.info("Total venues (post-merge): %d", len(all_venues))
 
+    # --- Apply manual overrides (overrides.json) ---
+    # A curated list of known data-quality issues in the source APIs.
+    # Currently supports action "drop_coords" to remove bad coordinates.
+    # This file is optional — if absent the build still runs bbox validation
+    # below.  See overrides.json for documentation and notes.
+    overrides_file = ROOT / "overrides.json"
+    overrides_applied = 0
+    if overrides_file.exists():
+        overrides_data = json.loads(overrides_file.read_text())
+        override_list = overrides_data.get("overrides", [])
+        # Build a lookup set keyed on (name, address, borough) for fast matching
+        drop_coords_keys: set[tuple[str, str, str]] = set()
+        for o in override_list:
+            if o.get("action") == "drop_coords":
+                drop_coords_keys.add((
+                    o["name"].strip().lower(),
+                    o["address"].strip().lower(),
+                    _normalize_boro(o.get("borough", "")),
+                ))
+        for v in all_venues:
+            key = (
+                v.get("name", "").strip().lower(),
+                v.get("address", "").strip().lower(),
+                _normalize_boro(v.get("borough", "")),
+            )
+            if key in drop_coords_keys and "lat" in v and "lng" in v:
+                del v["lat"]
+                del v["lng"]
+                overrides_applied += 1
+        log.info("Overrides: applied %d from %d entries in overrides.json",
+                 overrides_applied, len(override_list))
+
+    # Validate coordinates against borough bounding boxes.
+    # Some source records have correct address/borough but wildly wrong lat/lng
+    # (e.g., a Manhattan venue placed in Brooklyn).  Drop bad coords so the
+    # crossref override or a future geocode can fix them.
+    # This catches issues not yet listed in overrides.json.
+    _BORO_BOUNDS = {
+        "manhattan":      (40.698, 40.882, -74.025, -73.907),
+        "brooklyn":       (40.566, 40.740, -74.045, -73.830),
+        "queens":         (40.540, 40.812, -73.963, -73.700),
+        "bronx":          (40.785, 40.917, -73.935, -73.748),
+        "staten island":  (40.490, 40.652, -74.260, -74.050),
+    }
+    bad_coords = 0
+    for v in all_venues:
+        lat, lng = v.get("lat"), v.get("lng")
+        if not (lat and lng):
+            continue
+        boro = _normalize_boro(v.get("borough", ""))
+        bounds = _BORO_BOUNDS.get(boro)
+        if not bounds:
+            continue
+        lat_lo, lat_hi, lng_lo, lng_hi = bounds
+        if not (lat_lo <= lat <= lat_hi and lng_lo <= lng <= lng_hi):
+            log.debug("Bad coords for %s at %s (%s): %.5f,%.5f not in %s bbox",
+                      v.get("name"), v.get("address"), v.get("borough"), lat, lng, boro)
+            del v["lat"]
+            del v["lng"]
+            bad_coords += 1
+    if bad_coords:
+        log.info("Dropped %d venues with coords outside their borough bbox", bad_coords)
+
     # Stamp cross-reference flags (not-on-Yelp / not-on-Google) from cached DB
     from crossref import DB_PATH as XREF_DB, venue_key as xref_key, get_flags, get_stats as xref_stats, init_db as xref_init
     xref_checked = 0
+    coords_upgraded = 0
     if XREF_DB.exists():
         xconn = xref_init()
         flags = get_flags(xconn)
@@ -430,8 +502,16 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
                     v["gr"] = f["google_reviews"]   # google review count
                 if f.get("google_rating") is not None:
                     v["grt"] = f["google_rating"]   # google rating
+                # Override coordinates with more precise ones from Google/Yelp
+                best_lat = f.get("google_lat") or f.get("yelp_lat")
+                best_lng = f.get("google_lng") or f.get("yelp_lng")
+                if best_lat and best_lng:
+                    v["lat"] = best_lat
+                    v["lng"] = best_lng
+                    coords_upgraded += 1
                 xref_checked += 1
-        log.info("Cross-ref: stamped %d venues | yelp=%s google=%s", xref_checked, xs.get("yelp", {}), xs.get("google", {}))
+        log.info("Cross-ref: stamped %d venues (%d coords upgraded) | yelp=%s google=%s",
+                 xref_checked, coords_upgraded, xs.get("yelp", {}), xs.get("google", {}))
     else:
         log.info("Cross-ref: no DB yet — skipping (run crossref.py first)")
 
