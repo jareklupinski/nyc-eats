@@ -5,7 +5,6 @@ open data sources.
 
 ![Leaflet + MarkerCluster map](https://img.shields.io/badge/map-Leaflet%201.9-green)
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
-![License: MIT](https://img.shields.io/badge/license-MIT-yellow)
 
 ## Data sources
 

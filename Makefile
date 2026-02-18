@@ -72,16 +72,21 @@ serve: build
 	cd dist && $(PYTHON) -m http.server 8000
 
 # --- Deploy ---
+# Note: we only sync dist/ content — the nginx config on the server is managed
+# separately since certbot adds SSL directives to it.  Use `make deploy-nginx`
+# for initial nginx setup (before certbot), then run certbot once manually.
 
-deploy: build nginx.conf
+deploy: build
 	rsync -avz --delete dist/ $(VPS_HOST):$(VPS_PATH)/dist/
+
+deploy-only:
+	rsync -avz --delete dist/ $(VPS_HOST):$(VPS_PATH)/dist/
+
+# Initial nginx setup (run once, then use certbot to add SSL)
+deploy-nginx: nginx.conf
 	rsync -avz nginx.conf $(VPS_HOST):$(VPS_PATH)/nginx.conf
 	ssh $(VPS_HOST) 'sudo ln -sf $(VPS_PATH)/nginx.conf /etc/nginx/sites-enabled/$(SITE_DOMAIN).conf && sudo nginx -t && sudo systemctl reload nginx'
-
-deploy-only: nginx.conf
-	rsync -avz --delete dist/ $(VPS_HOST):$(VPS_PATH)/dist/
-	rsync -avz nginx.conf $(VPS_HOST):$(VPS_PATH)/nginx.conf
-	ssh $(VPS_HOST) 'sudo ln -sf $(VPS_PATH)/nginx.conf /etc/nginx/sites-enabled/$(SITE_DOMAIN).conf && sudo nginx -t && sudo systemctl reload nginx'
+	@echo "Now run: ssh $(VPS_HOST) sudo certbot --nginx -d $(SITE_DOMAIN)"
 
 # --- Generated configs ---
 # nginx.conf and the systemd service are generated from .in templates
