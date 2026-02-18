@@ -79,6 +79,13 @@
       </tbody>
     </table>
 
+    <h3>Cross-Reference Stars</h3>
+    <ul class="xr-legend">
+      <li><span class="xr-star" style="color:#dc2626">★</span> Not on Yelp</li>
+      <li><span class="xr-star" style="color:#2563eb">★</span> Not on Google Maps</li>
+      <li><span class="xr-star" style="color:#9333ea">★</span> Not on either</li>
+    </ul>
+
     <a href="https://github.com/jareklupinski/nyc-eats" target="_blank" rel="noopener" class="github-link">
       <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
       Source
@@ -136,6 +143,17 @@
   // Icon cache to avoid creating thousands of duplicate DOM icon objects
   const iconCache = {};
 
+  // Cross-ref star: red=not-on-yelp, blue=not-on-google, purple=both missing
+  function xrefStar(venue) {
+    const y = venue.xr_y, g = venue.xr_g;
+    const noYelp   = y === "not_found";
+    const noGoogle = g === "not_found";
+    if (noYelp && noGoogle) return { cls: "xr-purple", color: "#9333ea" };
+    if (noYelp)             return { cls: "xr-red",    color: "#dc2626" };
+    if (noGoogle)           return { cls: "xr-blue",   color: "#2563eb" };
+    return null;
+  }
+
   function makeIcon(venue) {
     const src = venue.source;
     const grade = (venue.grade || "").trim().toUpperCase();
@@ -143,27 +161,28 @@
     let label, color, cls;
 
     if (src === "sla") {
-      // SLA-only: martini glass
       label = "\uD83C\uDF78";  // 🍸
       color = COLORS.sla;
       cls = "vm-martini";
     } else if (src === "both") {
-      // Matched in both sources: purple + grade letter
       label = (grade && grade !== "P" && grade !== "N" && grade !== "Z") ? grade : "?";
       color = COLORS.both;
       cls = "vm-letter";
     } else {
-      // DOHMH only: blue + grade letter
       label = (grade && grade !== "P" && grade !== "N" && grade !== "Z") ? grade : "?";
       color = COLORS.dohmh;
       cls = "vm-letter";
     }
 
-    const key = `${cls}-${color}-${label}`;
+    const star = xrefStar(venue);
+    const starHtml = star ? `<span class="xr-star" style="color:${star.color}">★</span>` : "";
+    const starKey = star ? star.cls : "none";
+
+    const key = `${cls}-${color}-${label}-${starKey}`;
     if (!iconCache[key]) {
       iconCache[key] = L.divIcon({
-        className: `venue-marker ${cls}`,
-        html: `<span style="color:${color}">${label}</span>`,
+        className: `venue-marker ${cls}${star ? ' has-star' : ''}`,
+        html: `<span style="color:${color}">${label}</span>${starHtml}`,
         iconSize: [16, 16],
         iconAnchor: [8, 8],
       });
@@ -187,6 +206,14 @@
     popupParts.push(`<span class="popup-source">${escHtml(v.source)}</span>`);
     if (v.tags && v.tags.length) {
       popupParts.push(`<span class="popup-tags">${v.tags.map(escHtml).join(", ")}</span>`);
+    }
+    // Cross-ref badges
+    const xr = xrefStar(v);
+    if (xr) {
+      const parts = [];
+      if (v.xr_y === "not_found") parts.push("Yelp");
+      if (v.xr_g === "not_found") parts.push("Google Maps");
+      popupParts.push(`<span class="xr-badge" style="color:${xr.color}">★ Not on ${parts.join(" or ")}</span>`);
     }
 
     const marker = L.marker([v.lat, v.lng], { icon: makeIcon(v) });

@@ -1,8 +1,8 @@
 [Unit]
-Description=Refresh NYC Eats data every Sunday at 3:00 AM Eastern
+Description=Refresh NYC Eats data daily at 3:00 AM Eastern
 
 [Timer]
-OnCalendar=Sun *-*-* 08:00:00 UTC
+OnCalendar=*-*-* 08:00:00 UTC
 # 3:00 AM US/Eastern = 08:00 UTC (EST) / 07:00 UTC (EDT)
 # Using UTC to avoid DST ambiguity on the server.
 Persistent=true

@@ -401,6 +401,25 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
     all_venues, merge_stats = merge_cross_source(all_venues)
     log.info("Total venues (post-merge): %d", len(all_venues))
 
+    # Stamp cross-reference flags (not-on-Yelp / not-on-Google) from cached DB
+    from crossref import DB_PATH as XREF_DB, venue_key as xref_key, get_flags, get_stats as xref_stats, init_db as xref_init
+    xref_checked = 0
+    if XREF_DB.exists():
+        xconn = xref_init()
+        flags = get_flags(xconn)
+        xs = xref_stats(xconn)
+        xconn.close()
+        for v in all_venues:
+            k = xref_key(v["name"], v.get("address", ""), v.get("borough", ""))
+            f = flags.get(k)
+            if f:
+                v["xr_y"] = f["yelp"]      # yelp status
+                v["xr_g"] = f["google"]     # google status
+                xref_checked += 1
+        log.info("Cross-ref: stamped %d venues | yelp=%s google=%s", xref_checked, xs.get("yelp", {}), xs.get("google", {}))
+    else:
+        log.info("Cross-ref: no DB yet — skipping (run crossref.py first)")
+
     # Collect all unique tags across venues for filter UI
     all_tags = sorted({t for v in all_venues for t in v.get("tags", [])})
     all_source_names = sorted({v["source"] for v in all_venues})

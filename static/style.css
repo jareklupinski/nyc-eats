@@ -135,6 +135,16 @@ button {
 .github-link:hover { color: #111827; }
 .github-link svg { vertical-align: middle; }
 
+/* --- Cross-reference legend --- */
+.xr-legend {
+  list-style: none;
+  padding: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+.xr-legend li { margin-bottom: 0.2rem; }
+.xr-legend .xr-star { font-size: 1rem; margin-right: 4px; }
+
 /* --- Map --- */
 #map {
   flex: 1;
@@ -163,6 +173,17 @@ button {
   text-shadow: 0 0 3px rgba(255,255,255,0.9);
 }
 
+/* Cross-reference star badge on markers */
+.venue-marker .xr-star {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  font-size: 10px;
+  line-height: 1;
+  text-shadow: 0 0 2px rgba(255,255,255,0.95), 0 0 4px rgba(255,255,255,0.7);
+  pointer-events: none;
+}
+
 /* --- Popup --- */
 .popup-aka {
   display: block;
@@ -181,6 +202,12 @@ button {
 .popup-tags {
   font-size: 0.75rem;
   color: #9ca3af;
+}
+.xr-badge {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 /* --- Mobile sidebar toggle --- */

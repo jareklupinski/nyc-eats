@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# nyc-eats-refresh — weekly rebuild of the NYC Eats site
+# nyc-eats-refresh — daily rebuild + cross-reference of the NYC Eats site
 #
-# Runs every Sunday at 3:00 AM ET on the VPS via systemd timer.
+# Runs daily at 3:00 AM ET on the VPS via systemd timer.
 #
 # What it does:
 #   1. Installs/updates Python dependencies
 #   2. Runs the build (fetches fresh data from both APIs)
-#   3. Copies the built site to the nginx serving directory
+#   3. Runs cross-reference checks (Yelp + Google Places) up to daily limits
+#   4. Rebuilds with cross-ref flags baked in
+#   5. Copies the built site to the nginx serving directory
 #
 # Configuration via env vars — see cron/README.md.
 
@@ -44,6 +46,22 @@ fi
 # Build (fresh fetch, no cache)
 log "Building site…"
 "$VENV/bin/python" build.py -v 2>&1
+
+# Cross-reference: check venues against Yelp & Google Places
+# Uses cached results from previous runs; processes up to daily API limits
+if [ -n "${YELP_API_KEY:-}" ] || [ -n "${GOOGLE_API_KEY:-}" ]; then
+    log "Running cross-reference checks…"
+    XREF_START=$(date +%s)
+    "$VENV/bin/python" crossref.py 2>&1
+    XREF_END=$(date +%s)
+    log "Cross-reference completed in $(( XREF_END - XREF_START ))s"
+
+    # Rebuild with updated cross-ref flags
+    log "Rebuilding with cross-ref data…"
+    "$VENV/bin/python" build.py -v --cache 2>&1
+else
+    log "No API keys set — skipping cross-reference"
+fi
 
 # Deploy to serving directory
 log "Syncing to $SERVE_DIR…"
