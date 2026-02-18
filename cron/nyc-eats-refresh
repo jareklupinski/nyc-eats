@@ -16,7 +16,7 @@ set -euo pipefail
 
 # --- Configuration ---
 REPO_DIR="${NYC_EATS_REPO:-$HOME/nyc-eats}"
-SERVE_DIR="${NYC_EATS_SERVE:-$HOME/nyc-eats-site/dist}"
+SERVE_DIR="${NYC_EATS_SERVE:-$HOME/nyc-eats-site}"
 LOGFILE="${NYC_EATS_LOG:-$HOME/nyc-eats-site/refresh.log}"
 VENV="$REPO_DIR/.venv"
 

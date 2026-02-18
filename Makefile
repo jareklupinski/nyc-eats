@@ -77,10 +77,10 @@ serve: build
 # for initial nginx setup (before certbot), then run certbot once manually.
 
 deploy: build
-	rsync -avz --delete dist/ $(VPS_HOST):$(VPS_PATH)/dist/
+	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' dist/ $(VPS_HOST):$(VPS_PATH)/
 
 deploy-only:
-	rsync -avz --delete dist/ $(VPS_HOST):$(VPS_PATH)/dist/
+	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' dist/ $(VPS_HOST):$(VPS_PATH)/
 
 # Initial nginx setup (run once, then use certbot to add SSL)
 deploy-nginx: nginx.conf

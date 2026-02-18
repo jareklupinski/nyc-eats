@@ -81,5 +81,5 @@ Environment variables in the refresh script (all optional):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NYC_EATS_REPO` | `~/nyc-eats` | Path to the project on the server |
-| `NYC_EATS_SERVE` | `~/nyc-eats-site/dist` | nginx serving root |
+| `NYC_EATS_SERVE` | `~/nyc-eats-site` | nginx serving root |
 | `NYC_EATS_LOG` | `~/nyc-eats-site/refresh.log` | Log file path |

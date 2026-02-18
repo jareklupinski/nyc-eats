@@ -3,7 +3,7 @@
 build.py — NYC Eats static site generator.
 
 Discovers all data sources, fetches venues, and renders a static site
-into dist/ ready to be served by nginx.
+into dist/ for local dev; deployed to the nginx serving root.
 
 Usage:
     python build.py                  # build with all sources
@@ -503,12 +503,24 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
                 if f.get("google_rating") is not None:
                     v["grt"] = f["google_rating"]   # google rating
                 # Override coordinates with more precise ones from Google/Yelp
-                best_lat = f.get("google_lat") or f.get("yelp_lat")
-                best_lng = f.get("google_lng") or f.get("yelp_lng")
-                if best_lat and best_lng:
-                    v["lat"] = best_lat
-                    v["lng"] = best_lng
-                    coords_upgraded += 1
+                # but only if they fall within the venue's borough bbox.
+                # Try Google first (preferred), fall back to Yelp.
+                boro = _normalize_boro(v.get("borough", ""))
+                bounds = _BORO_BOUNDS.get(boro)
+                upgraded = False
+                for src, slat, slng in (("google", f.get("google_lat"), f.get("google_lng")),
+                                        ("yelp",   f.get("yelp_lat"),   f.get("yelp_lng"))):
+                    if not slat or not slng:
+                        continue
+                    if not bounds or (bounds[0] <= slat <= bounds[1] and bounds[2] <= slng <= bounds[3]):
+                        v["lat"] = slat
+                        v["lng"] = slng
+                        coords_upgraded += 1
+                        upgraded = True
+                        break
+                    else:
+                        log.debug("Crossref %s coords rejected for %s at %s (%s): %.5f,%.5f outside %s bbox",
+                                  src, v.get("name"), v.get("address"), v.get("borough"), slat, slng, boro)
                 xref_checked += 1
         log.info("Cross-ref: stamped %d venues (%d coords upgraded) | yelp=%s google=%s",
                  xref_checked, coords_upgraded, xs.get("yelp", {}), xs.get("google", {}))

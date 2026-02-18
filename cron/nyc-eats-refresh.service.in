@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=oneshot
 User={{VPS_USER}}
 Environment=NYC_EATS_REPO={{VPS_REPO}}
-Environment=NYC_EATS_SERVE={{VPS_PATH}}/dist
+Environment=NYC_EATS_SERVE={{VPS_PATH}}
 Environment=NYC_EATS_LOG={{VPS_PATH}}/refresh.log
 Environment=YELP_API_KEY={{YELP_API_KEY}}
 Environment=GOOGLE_API_KEY={{GOOGLE_API_KEY}}

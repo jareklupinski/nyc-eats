@@ -259,6 +259,7 @@
   const allMarkers = [];
 
   for (const v of VENUE_DATA) {
+    if (v.lat == null || v.lng == null) continue;
     const popupParts = [`<strong>${escHtml(v.name)}</strong>`];
     if (v.sla_name && v.sla_name.toLowerCase() !== v.name.toLowerCase()) {
       popupParts.push(`<em class="popup-aka">SLA: ${escHtml(v.sla_name)}</em>`);
