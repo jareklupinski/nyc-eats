@@ -1,5 +1,7 @@
 # NYC Eats 🍴
 
+<img width="1459" height="1001" alt="Screenshot 2026-02-17 at 7 47 49 PM" src="https://github.com/user-attachments/assets/00928ea0-8c72-44c5-8152-a3f0be74e797" />
+
 A static-site dashboard mapping every NYC restaurant and bar, built from two
 open data sources.
 
