@@ -65,7 +65,7 @@ fi
 
 # Deploy to serving directory
 log "Syncing to $SERVE_DIR…"
-rsync -a --delete dist/ "$SERVE_DIR/"
+rsync -a --delete --exclude='nginx.conf' --exclude='refresh.log' dist/ "$SERVE_DIR/"
 
 log "=== Refresh complete ($(wc -l < "$REPO_DIR/dist/venues.js" | tr -d ' ') lines in venues.js) ==="
 echo ""

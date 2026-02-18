@@ -6,7 +6,7 @@ server {
     listen 80;
     server_name {{SITE_DOMAIN}};
 
-    root {{VPS_PATH}}/dist;
+    root {{VPS_PATH}};
     index index.html;
 
     # venues.js is the biggest asset — cache aggressively since
