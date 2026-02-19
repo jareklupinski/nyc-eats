@@ -1,0 +1,3 @@
+[submodule "vendor/TuiCss"]
+	path = vendor/TuiCss
+	url = https://github.com/vinibiavatti1/TuiCss.git
