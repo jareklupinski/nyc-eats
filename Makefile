@@ -82,6 +82,20 @@ deploy: build
 deploy-only:
 	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' dist/ $(VPS_HOST):$(VPS_PATH)/
 
+# Sync the full project repo + crossref DB to the server
+sync-repo:
+	rsync -avz --delete \
+	  --exclude='.venv/' \
+	  --exclude='dist/' \
+	  --exclude='__pycache__/' \
+	  --exclude='.cache/*.json' \
+	  --exclude='.cache/*.log' \
+	  --exclude='.env' \
+	  --exclude='*.pyc' \
+	  --exclude='_*.py' \
+	  ./ $(VPS_HOST):$(VPS_REPO)/
+	@echo "Repo synced. DB included at .cache/crossref.db"
+
 # Initial nginx setup (run once, then use certbot to add SSL)
 deploy-nginx: nginx.conf
 	rsync -avz nginx.conf $(VPS_HOST):$(VPS_PATH)/nginx.conf

@@ -91,10 +91,6 @@
     <label><input type="radio" name="flag" value="new-venue"> <span style="color:#f59e0b">⏱</span> New <span class="filter-count" data-flag="new-venue"></span></label>
     <label><input type="radio" name="flag" value="not-on-yelp"> <span style="color:#dc2626">★</span> No Yelp <span class="filter-count" data-flag="not-on-yelp"></span></label>
     <label><input type="radio" name="flag" value="not-on-google"> <span style="color:#2563eb">★</span> No Google <span class="filter-count" data-flag="not-on-google"></span></label>
-    <label><input type="radio" name="flag" value="ot-gem"> <span style="color:#16a34a">O</span> OT Gems <span class="filter-count" data-flag="ot-gem"></span></label>
-    <label><input type="radio" name="flag" value="not-on-ot"> <span style="color:#16a34a">★</span> No OT <span class="filter-count" data-flag="not-on-ot"></span></label>
-    <label><input type="radio" name="flag" value="ta-gem"> <span style="color:#06b6d4">T</span> TA Gems <span class="filter-count" data-flag="ta-gem"></span></label>
-    <label><input type="radio" name="flag" value="not-on-ta"> <span style="color:#06b6d4">★</span> No TA <span class="filter-count" data-flag="not-on-ta"></span></label>
     <label><input type="radio" name="flag" value="any"> All flagged <span class="filter-count" data-flag="any"></span></label>
   </div>
 
@@ -140,7 +136,7 @@
     <fieldset class="tui-fieldset">
       <legend>Data Pipeline</legend>
       <button class="modal-close" data-modal="pipeline-modal">&times;</button>
-      <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp, Google Maps, OpenTable &amp; TripAdvisor.</p>
+      <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp &amp; Google Maps.</p>
       <table class="tui-table hovered">
         <thead><tr><th>Step</th><th>Result</th></tr></thead>
         <tbody>
@@ -165,7 +161,7 @@
     <fieldset class="tui-fieldset">
       <legend>Discovery Flags</legend>
       <button class="modal-close" data-modal="flags-modal">&times;</button>
-      <p class="modal-intro">Every venue is cross-referenced against Yelp, Google Maps, OpenTable &amp; TripAdvisor. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
+      <p class="modal-intro">Every venue is cross-referenced against Yelp &amp; Google Maps. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
       <div class="modal-heading">Flag Types</div>
       <ul class="xr-legend">
         <li><span class="xr-badge-icon" style="color:#2563eb">G</span> <strong>Google hidden gem</strong> &mdash; Found on Google with &lt;100 reviews but &gt;4&thinsp;★. Quietly excellent.</li>
@@ -173,10 +169,6 @@
         <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> <strong>New</strong> &mdash; Opened less than one month ago. Give them a chance.</li>
         <li><span class="xr-badge-icon" style="color:#dc2626">★</span> <strong>Not on Yelp</strong> &mdash; Licensed or inspected, but Yelp doesn&rsquo;t know about them.</li>
         <li><span class="xr-badge-icon" style="color:#2563eb">★</span> <strong>Not on Google</strong> &mdash; Licensed or inspected, but missing from Google Maps entirely.</li>
-        <li><span class="xr-badge-icon" style="color:#16a34a">O</span> <strong>OpenTable gem</strong> &mdash; Found on OpenTable with &lt;100 reviews but &gt;4&thinsp;★.</li>
-        <li><span class="xr-badge-icon" style="color:#16a34a">★</span> <strong>Not on OpenTable</strong> &mdash; Licensed or inspected, but not listed on OpenTable.</li>
-        <li><span class="xr-badge-icon" style="color:#06b6d4">T</span> <strong>TripAdvisor gem</strong> &mdash; Found on TripAdvisor with &lt;100 reviews but &gt;4&thinsp;★.</li>
-        <li><span class="xr-badge-icon" style="color:#06b6d4">★</span> <strong>Not on TripAdvisor</strong> &mdash; Licensed or inspected, but not listed on TripAdvisor.</li>
       </ul>
     </fieldset>
   </div>
@@ -286,22 +278,6 @@
     if (venue.xr_g === "not_found") {
       badges.push({ type: "not-on-google", label: "\u2605", color: "#2563eb", cls: "xr-blue" });
     }
-    // OpenTable hidden gem: found on OT, <100 reviews, >4 stars
-    if (venue.xr_ot === "found" && venue.otr != null && venue.otr < 100 && venue.otrt != null && venue.otrt > 4) {
-      badges.push({ type: "ot-gem", label: "O", color: "#16a34a", cls: "badge-ot" });
-    }
-    // Not on OpenTable
-    if (venue.xr_ot === "not_found") {
-      badges.push({ type: "not-on-ot", label: "\u2605", color: "#16a34a", cls: "xr-green" });
-    }
-    // TripAdvisor hidden gem: found on TA, <100 reviews, >4 stars
-    if (venue.xr_ta === "found" && venue.tar != null && venue.tar < 100 && venue.tart != null && venue.tart > 4) {
-      badges.push({ type: "ta-gem", label: "T", color: "#06b6d4", cls: "badge-ta" });
-    }
-    // Not on TripAdvisor
-    if (venue.xr_ta === "not_found") {
-      badges.push({ type: "not-on-ta", label: "\u2605", color: "#06b6d4", cls: "xr-cyan" });
-    }
     return badges;
   }
 
@@ -337,22 +313,12 @@
           popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Yelp</span>`);
         } else if (b.type === "not-on-google") {
           popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Google Maps</span>`);
-        } else if (b.type === "ot-gem") {
-          popupParts.push(`<span class="xr-badge" style="color:${b.color}">O OpenTable gem (${v.otrt}★, ${v.otr} reviews)</span>`);
-        } else if (b.type === "not-on-ot") {
-          popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on OpenTable</span>`);
-        } else if (b.type === "ta-gem") {
-          popupParts.push(`<span class="xr-badge" style="color:${b.color}">T TripAdvisor gem (${v.tart}★, ${v.tar} reviews)</span>`);
-        } else if (b.type === "not-on-ta") {
-          popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on TripAdvisor</span>`);
         }
       }
     }
     const reviewParts = [];
     if (v.yr != null) reviewParts.push(`Yelp: ${v.yrt != null ? v.yrt + '★' : '?'} (${v.yr})`);
     if (v.gr != null) reviewParts.push(`Google: ${v.grt != null ? v.grt + '★' : '?'} (${v.gr})`);
-    if (v.otr != null) reviewParts.push(`OT: ${v.otrt != null ? v.otrt + '★' : '?'} (${v.otr})`);
-    if (v.tar != null) reviewParts.push(`TA: ${v.tart != null ? v.tart + '★' : '?'} (${v.tar})`);
     if (reviewParts.length) {
       popupParts.push(`<span class="popup-reviews">${reviewParts.join(' · ')}</span>`);
     }

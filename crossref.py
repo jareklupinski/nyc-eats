@@ -16,6 +16,7 @@ Called from build.py to read cached flags into venue data.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
 import os
@@ -35,17 +36,14 @@ DB_PATH = ROOT / ".cache" / "crossref.db"
 # --- API configuration (set via env or .env) ---
 YELP_API_KEY = os.environ.get("YELP_API_KEY", "")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
-TRIPADVISOR_API_KEY = os.environ.get("TRIPADVISOR_API_KEY", "")
 YELP_DAILY_LIMIT = int(os.environ.get("YELP_DAILY_LIMIT", "4500"))
 GOOGLE_DAILY_LIMIT = int(os.environ.get("GOOGLE_DAILY_LIMIT", "1000"))
 OPENTABLE_DAILY_LIMIT = int(os.environ.get("OPENTABLE_DAILY_LIMIT", "2000"))
-TRIPADVISOR_DAILY_LIMIT = int(os.environ.get("TRIPADVISOR_DAILY_LIMIT", "4500"))
 
 # Requests per second (conservative)
 YELP_QPS = 4
 GOOGLE_QPS = 8
 OPENTABLE_QPS = 3
-TRIPADVISOR_QPS = 4
 
 # NYC center for proximity searches
 _NYC_LAT, _NYC_LNG = 40.7128, -74.0060
@@ -76,7 +74,7 @@ def _name_similarity(a: str, b: str) -> float:
 
 def init_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), timeout=30)
+    conn = sqlite3.connect(str(DB_PATH), timeout=60)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS crossref (
@@ -113,13 +111,6 @@ def init_db() -> sqlite3.Connection:
         ("opentable_rating",     "REAL"),
         ("opentable_review_count", "INTEGER"),
         ("opentable_price",      "TEXT"),
-        # TripAdvisor
-        ("tripadvisor_status",     "TEXT DEFAULT 'unchecked'"),
-        ("tripadvisor_checked_at", "TEXT"),
-        ("tripadvisor_location_id", "TEXT"),
-        ("tripadvisor_url",        "TEXT"),
-        ("tripadvisor_rating",     "REAL"),
-        ("tripadvisor_review_count", "INTEGER"),
     ]
     for col, typ in migrations:
         if col not in existing_cols:
@@ -132,17 +123,32 @@ def sync_venues(conn: sqlite3.Connection, venues: list[dict]) -> int:
     """Ensure every venue has a row in the crossref table.  Returns new count."""
     existing = {r[0] for r in conn.execute("SELECT venue_key FROM crossref")}
     new = 0
+    batch = []
     for v in venues:
         k = venue_key(v["name"], v.get("address", ""), v.get("borough", ""))
         if k not in existing:
-            conn.execute(
-                "INSERT INTO crossref (venue_key, venue_name, venue_address, venue_borough) "
-                "VALUES (?, ?, ?, ?)",
-                (k, v["name"], v.get("address", ""), v.get("borough", "")),
-            )
+            batch.append((k, v["name"], v.get("address", ""), v.get("borough", "")))
             existing.add(k)
             new += 1
-    conn.commit()
+    # Write in chunks with retry to avoid lock contention
+    CHUNK = 500
+    for i in range(0, len(batch), CHUNK):
+        chunk = batch[i:i + CHUNK]
+        for attempt in range(10):
+            try:
+                conn.executemany(
+                    "INSERT OR IGNORE INTO crossref (venue_key, venue_name, venue_address, venue_borough) "
+                    "VALUES (?, ?, ?, ?)",
+                    chunk,
+                )
+                conn.commit()
+                break
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e) and attempt < 9:
+                    log.warning("sync_venues: DB locked, retry %d/10", attempt + 1)
+                    time.sleep(2 + attempt)
+                else:
+                    raise
     log.info("Synced venues: %d new, %d total", new, len(existing))
     return new
 
@@ -261,14 +267,14 @@ def check_google(
 
     limit = limit or GOOGLE_DAILY_LIMIT
 
-    # Mark non-target boroughs as 'skip' so they're never queued
-    if borough_filter:
-        conn.execute(
-            "UPDATE crossref SET google_status = 'skip' "
-            "WHERE google_status = 'unchecked' AND UPPER(venue_borough) != ?",
-            (borough_filter.upper(),),
-        )
+    # Reset any 'skip' statuses from previous borough-filtered runs
+    # (those venues were never actually scanned — don't waste API calls)
+    reset = conn.execute(
+        "UPDATE crossref SET google_status = 'unchecked' WHERE google_status = 'skip'"
+    ).rowcount
+    if reset:
         conn.commit()
+        log.info("Google: reset %d previously-skipped venues to unchecked", reset)
 
     where = "google_status = 'unchecked'"
     params: list = []
@@ -463,123 +469,6 @@ def check_opentable(conn: sqlite3.Connection, limit: int | None = None) -> int:
 
     conn.commit()
     log.info("OpenTable: finished %d checks", checked)
-    return checked
-
-
-# ---------------------------------------------------------------------------
-# TripAdvisor Content API  (requires free API key)
-# ---------------------------------------------------------------------------
-
-_TA_SEARCH = "https://api.content.tripadvisor.com/api/v1/location/search"
-_TA_DETAILS = "https://api.content.tripadvisor.com/api/v1/location/{location_id}/details"
-
-
-def check_tripadvisor(conn: sqlite3.Connection, limit: int | None = None) -> int:
-    """Search TripAdvisor for each unchecked venue via the Content API (free tier).
-
-    Requires TRIPADVISOR_API_KEY set as env var.
-    Free tier: 5 000 calls/month.  We use 2 calls per venue (search + details).
-    """
-    if not TRIPADVISOR_API_KEY:
-        log.warning("TRIPADVISOR_API_KEY not set — skipping")
-        return 0
-
-    limit = limit or TRIPADVISOR_DAILY_LIMIT
-    rows = conn.execute(
-        "SELECT venue_key, venue_name, venue_address, venue_borough "
-        "FROM crossref WHERE (tripadvisor_status IS NULL OR tripadvisor_status = 'unchecked') "
-        "LIMIT ?",
-        (limit,),
-    ).fetchall()
-    if not rows:
-        log.info("TripAdvisor: nothing to check")
-        return 0
-
-    log.info("TripAdvisor: %d venues to check (limit %d)", len(rows), limit)
-    headers = {"Accept": "application/json"}
-    checked = 0
-
-    for key, name, address, borough in rows:
-        try:
-            # Step 1: search
-            resp = requests.get(
-                _TA_SEARCH,
-                headers=headers,
-                params={
-                    "key": TRIPADVISOR_API_KEY,
-                    "searchQuery": f"{name}, {address}, New York",
-                    "category": "restaurants",
-                    "language": "en",
-                    "latLong": f"{_NYC_LAT},{_NYC_LNG}",
-                },
-                timeout=15,
-            )
-            if resp.status_code == 429:
-                log.warning("TripAdvisor rate-limited after %d requests", checked)
-                conn.commit()
-                return checked
-            resp.raise_for_status()
-
-            results = resp.json().get("data", [])
-            found = False
-            ta_loc_id = ta_url = None
-            ta_rating = ta_rc = None
-
-            for r in results:
-                if _name_similarity(name, r.get("name", "")) >= 0.45:
-                    ta_loc_id = str(r.get("location_id", ""))
-                    found = True
-                    break
-
-            # Step 2: get details for rating/reviews
-            if found and ta_loc_id:
-                time.sleep(1.0 / TRIPADVISOR_QPS)
-                d_resp = requests.get(
-                    _TA_DETAILS.format(location_id=ta_loc_id),
-                    headers=headers,
-                    params={
-                        "key": TRIPADVISOR_API_KEY,
-                        "language": "en",
-                        "currency": "USD",
-                    },
-                    timeout=15,
-                )
-                if d_resp.status_code == 200:
-                    det = d_resp.json()
-                    ta_rating = det.get("rating")
-                    if ta_rating:
-                        ta_rating = float(ta_rating)
-                    ta_rc = det.get("num_reviews")
-                    if ta_rc:
-                        ta_rc = int(ta_rc)
-                    ta_url = det.get("web_url")
-
-            conn.execute(
-                "UPDATE crossref SET tripadvisor_status=?, tripadvisor_checked_at=?, "
-                "tripadvisor_location_id=?, tripadvisor_url=?, tripadvisor_rating=?, "
-                "tripadvisor_review_count=? WHERE venue_key=?",
-                (
-                    "found" if found else "not_found",
-                    datetime.now(timezone.utc).isoformat(),
-                    ta_loc_id, ta_url, ta_rating, ta_rc, key,
-                ),
-            )
-        except requests.RequestException as exc:
-            log.error("TripAdvisor error for %s: %s", name, exc)
-            conn.execute(
-                "UPDATE crossref SET tripadvisor_status='error', tripadvisor_checked_at=? "
-                "WHERE venue_key=?",
-                (datetime.now(timezone.utc).isoformat(), key),
-            )
-
-        checked += 1
-        if checked % 100 == 0:
-            conn.commit()
-            log.info("TripAdvisor: %d / %d checked", checked, len(rows))
-        time.sleep(1.0 / TRIPADVISOR_QPS)
-
-    conn.commit()
-    log.info("TripAdvisor: finished %d checks", checked)
     return checked
 
 
@@ -810,20 +699,18 @@ def backfill_coords_yelp(conn: sqlite3.Connection, limit: int = 1000) -> int:
 # ---------------------------------------------------------------------------
 
 def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
-    """Return {venue_key: {yelp, google, opentable, tripadvisor, review counts, ratings, coords}} for all checked venues."""
+    """Return {venue_key: {yelp, google, opentable, review counts, ratings, coords}} for all checked venues."""
     flags: dict[str, dict] = {}
     for row in conn.execute(
         "SELECT venue_key, yelp_status, google_status, yelp_url, "
         "yelp_review_count, yelp_rating, google_rating_count, google_rating, "
         "google_lat, google_lng, yelp_lat, yelp_lng, yelp_categories, "
-        "opentable_status, opentable_url, opentable_rating, opentable_review_count, "
-        "tripadvisor_status, tripadvisor_url, tripadvisor_rating, tripadvisor_review_count "
+        "opentable_status, opentable_url, opentable_rating, opentable_review_count "
         "FROM crossref"
     ):
         (key, yelp_st, google_st, yelp_url, y_rc, y_rat, g_rc, g_rat,
          g_lat, g_lng, y_lat, y_lng, y_cats,
-         ot_st, ot_url, ot_rat, ot_rc,
-         ta_st, ta_url, ta_rat, ta_rc) = row
+         ot_st, ot_url, ot_rat, ot_rc) = row
         flags[key] = {
             "yelp": yelp_st,
             "google": google_st,
@@ -841,10 +728,6 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
             "opentable_url": ot_url,
             "opentable_rating": ot_rat,
             "opentable_reviews": ot_rc,
-            "tripadvisor": ta_st or "unchecked",
-            "tripadvisor_url": ta_url,
-            "tripadvisor_rating": ta_rat,
-            "tripadvisor_reviews": ta_rc,
         }
     return flags
 
@@ -852,7 +735,7 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
 def get_stats(conn: sqlite3.Connection) -> dict:
     """Summary counts per service."""
     stats: dict[str, dict[str, int]] = {}
-    for svc in ("yelp", "google", "opentable", "tripadvisor"):
+    for svc in ("yelp", "google", "opentable"):
         col = f"{svc}_status"
         counts: dict[str, int] = {}
         for row in conn.execute(
@@ -906,6 +789,19 @@ def get_review_distribution(conn: sqlite3.Connection) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Parallel runner
+# ---------------------------------------------------------------------------
+
+def _run_with_own_conn(fn, **kwargs):
+    """Run a check function with its own DB connection for thread safety."""
+    conn = init_db()
+    try:
+        return fn(conn, **kwargs)
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -918,12 +814,11 @@ def main():
         datefmt="%H:%M:%S",
     )
 
-    parser = argparse.ArgumentParser(description="Cross-reference venues vs Yelp, Google, OpenTable & TripAdvisor")
+    parser = argparse.ArgumentParser(description="Cross-reference venues vs Yelp, Google & OpenTable")
     parser.add_argument("--yelp-limit", type=int, default=None)
     parser.add_argument("--google-limit", type=int, default=None)
     parser.add_argument("--google-borough", default="MANHATTAN")
     parser.add_argument("--opentable-limit", type=int, default=None)
-    parser.add_argument("--tripadvisor-limit", type=int, default=None)
     parser.add_argument("--stats", action="store_true", help="Print stats and exit")
     parser.add_argument("--backfill", action="store_true",
                         help="Re-check 'found' venues missing review counts")
@@ -1000,18 +895,41 @@ def main():
         conn.close()
         return
 
+    # Close main conn before spawning threads — each thread opens its own
+    conn.close()
+
     t0 = time.time()
-    yelp_n = check_yelp(conn, limit=args.yelp_limit)
-    google_n = check_google(conn, limit=args.google_limit, borough_filter=args.google_borough)
-    ot_n = check_opentable(conn, limit=args.opentable_limit)
-    ta_n = check_tripadvisor(conn, limit=args.tripadvisor_limit)
+
+    # Run all datasource checks in parallel (IO-bound HTTP calls)
+    results: dict[str, int] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        futures: dict[str, concurrent.futures.Future] = {}
+        if args.yelp_limit != 0:
+            futures["Yelp"] = pool.submit(
+                _run_with_own_conn, check_yelp, limit=args.yelp_limit)
+        if args.google_limit != 0:
+            futures["Google"] = pool.submit(
+                _run_with_own_conn, check_google,
+                limit=args.google_limit, borough_filter=args.google_borough)
+        if args.opentable_limit != 0:
+            futures["OpenTable"] = pool.submit(
+                _run_with_own_conn, check_opentable, limit=args.opentable_limit)
+
+        for name, fut in futures.items():
+            try:
+                results[name] = fut.result()
+            except Exception:
+                log.exception("Error in %s scan", name)
+                results[name] = 0
+
     elapsed = time.time() - t0
 
+    # Reopen for final stats
+    conn = init_db()
     stats = get_stats(conn)
-    log.info("Yelp:        %d checked this run | %s", yelp_n, stats.get("yelp", {}))
-    log.info("Google:      %d checked this run | %s", google_n, stats.get("google", {}))
-    log.info("OpenTable:   %d checked this run | %s", ot_n, stats.get("opentable", {}))
-    log.info("TripAdvisor: %d checked this run | %s", ta_n, stats.get("tripadvisor", {}))
+    log.info("Yelp:        %d checked this run | %s", results.get("Yelp", 0), stats.get("yelp", {}))
+    log.info("Google:      %d checked this run | %s", results.get("Google", 0), stats.get("google", {}))
+    log.info("OpenTable:   %d checked this run | %s", results.get("OpenTable", 0), stats.get("opentable", {}))
     log.info("Cross-reference completed in %.1fs", elapsed)
 
     conn.close()
