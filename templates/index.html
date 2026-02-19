@@ -6,8 +6,13 @@
   <title>NYC Eats — Every Restaurant in New York City</title>
   <meta name="description" content="Interactive map of {{ "{:,}".format(venue_count) }} restaurants, bars, and liquor licenses across NYC. Built from DOHMH inspections, SLA licenses, cross-referenced with Yelp and Google Maps.">
   <meta name="author" content="Jarek Lupinski">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+  <!-- Brutalist font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
@@ -28,19 +33,29 @@
   <!-- Leaflet core -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin>
-  <!-- MarkerCluster -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <!-- Supercluster (fast viewport-based clustering) -->
 
   <link rel="stylesheet" href="style.css?v={{ css_hash }}">
 </head>
 <body>
+
+<!-- Mobile top bar: title + GitHub + search in one fixed row -->
+<div id="top-bar">
+  <span class="sidebar-title">NYC Eats</span>
+  <a href="https://github.com/jareklupinski/nyc-eats" target="_blank" rel="noopener" class="gh-link" title="View on GitHub"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+  <div class="search-wrap" id="topbar-search">
+    <input type="text" id="search-input-mobile" placeholder="Search…">
+    <button id="search-clear-mobile" type="button" aria-label="Clear" class="search-clear-btn"></button>
+    <button id="apply-btn-mobile" type="button" aria-label="Search" class="apply-btn-style"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/><path d="M15.5 15.5L21 21"/></svg></button>
+  </div>
+</div>
 
 <div id="sidebar">
   <!-- Header -->
   <div class="sidebar-header">
     <span class="sidebar-title">NYC Eats</span>
     <a href="https://github.com/jareklupinski/nyc-eats" target="_blank" rel="noopener" class="gh-link" title="View on GitHub"><svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+    <button id="pipeline-info-btn" type="button" class="info-btn" title="Data pipeline">ⓘ</button>
   </div>
 
   <hr class="sidebar-divider">
@@ -54,29 +69,14 @@
 
   <hr class="sidebar-divider">
 
-  <!-- Sources -->
-  <div class="section-header">
-    <span class="section-title">Sources</span>
-    <button id="pipeline-info-btn" type="button" class="info-btn" title="Data pipeline">ⓘ</button>
-  </div>
-  <div class="filter-row" id="source-filters">
-    <label><input type="radio" name="source" value="all" checked> Both</label>
-    <label><input type="radio" name="source" value="dohmh"> Dept of Health</label>
-    <label><input type="radio" name="source" value="sla"> State Liquor</label>
-  </div>
-
-  <hr class="sidebar-divider">
-
   {% if all_diets %}
   <!-- Diet -->
-  <div class="section-header">
+  <div class="filter-row" id="diet-filters">
     <span class="section-title">Diet</span>
     <button id="diet-info-btn" type="button" class="info-btn" title="Diet data sources">ⓘ</button>
-  </div>
-  <div class="filter-row" id="diet-filters">
-    <label><input type="radio" name="diet" value="" checked> All</label>
+    <label><input type="radio" name="diet" value="" checked> All <span class="filter-count" data-diet=""></span></label>
     {% for d in all_diets %}
-    <label><input type="radio" name="diet" value="{{ d | e }}"> {{ d | e | capitalize }}</label>
+    <label><input type="radio" name="diet" value="{{ d | e }}"> {{ d | e | capitalize }} <span class="filter-count" data-diet="{{ d | e }}">{{ diet_counts[d] }}</span></label>
     {% endfor %}
   </div>
 
@@ -84,21 +84,18 @@
   {% endif %}
 
   <!-- Flags -->
-  <div class="section-header">
+  <div class="filter-row" id="flag-filters">
     <span class="section-title">Flags</span>
     <button id="flags-info-btn" type="button" class="info-btn" title="About discovery flags">ⓘ</button>
+    <label><input type="radio" name="flag" value="" checked> None</label>
+    <label><input type="radio" name="flag" value="google-gem"> <span style="color:#2563eb">G</span> Google Gems <span class="filter-count" data-flag="google-gem"></span></label>
+    <label><input type="radio" name="flag" value="yelp-gem"> <span style="color:#dc2626">Y</span> Yelp Gems <span class="filter-count" data-flag="yelp-gem"></span></label>
+    <label><input type="radio" name="flag" value="new-venue"> <span style="color:#f59e0b">⏱</span> New <span class="filter-count" data-flag="new-venue"></span></label>
+    <label><input type="radio" name="flag" value="not-on-yelp"> <span style="color:#dc2626">★</span> No Yelp <span class="filter-count" data-flag="not-on-yelp"></span></label>
+    <label><input type="radio" name="flag" value="not-on-google"> <span style="color:#2563eb">★</span> No Google <span class="filter-count" data-flag="not-on-google"></span></label>
+    <label><input type="radio" name="flag" value="any"> All flagged <span class="filter-count" data-flag="any"></span></label>
   </div>
-  <div class="filter-row badge-section">
-    <div id="badge-filters" class="badge-filters">
-      <button class="badge-filter-btn" data-badge="google-gem"><span style="color:#2563eb">G</span> Google Gems</button>
-      <button class="badge-filter-btn" data-badge="yelp-gem"><span style="color:#dc2626">Y</span> Yelp Gems</button>
-      <button class="badge-filter-btn" data-badge="new-venue"><span style="color:#f59e0b">⏱</span> New</button>
-      <button class="badge-filter-btn" data-badge="not-on-yelp"><span style="color:#dc2626">★</span> No Yelp</button>
-      <button class="badge-filter-btn" data-badge="not-on-google"><span style="color:#2563eb">★</span> No Google</button>
-      <button class="badge-filter-btn" data-badge="any">All flagged</button>
-    </div>
-    <div id="xr-venue-list" class="xr-venue-list"></div>
-  </div>
+  <div id="xr-venue-list" class="xr-venue-list"></div>
 
   <hr class="sidebar-divider">
 
@@ -111,6 +108,12 @@
   <div class="modal-content">
     <button class="modal-close" data-modal="cite-modal">&times;</button>
     <h2>Diet Data Sources</h2>
+    {% set src_urls = {
+      'HMS USA': 'https://www.hmsusa.org/certified-listing',
+      'KosherNearMe': 'https://koshernear.me/',
+      'DOHMH': 'https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j'
+    } %}
+    {% set src_labels = {'DOHMH': 'NYC DOHMH Restaurant Inspection Results'} %}
     <table class="cite-table">
       <thead><tr><th>Diet</th><th>Source</th><th>Count</th></tr></thead>
       <tbody>
@@ -118,45 +121,13 @@
         {% for src, cnt in src_map.items() | sort(attribute='1', reverse=true) %}
         <tr>
           {% if loop.first %}<td rowspan="{{ src_map | length }}"><strong>{{ diet }}</strong></td>{% endif %}
-          <td>{{ src }}</td>
+          <td>{% if src in src_urls %}<a href="{{ src_urls[src] }}" target="_blank" rel="noopener">{{ src_labels.get(src, src) }}</a>{% else %}{{ src }}{% endif %}</td>
           <td>{{ cnt }}</td>
         </tr>
         {% endfor %}
         {% endfor %}
       </tbody>
     </table>
-    <h3>Authoritative Sources</h3>
-    <div class="cite-links">
-      <a href="https://www.hmsusa.org/certified-listing" target="_blank" rel="noopener" class="cite-link">
-        <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#065f46"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="sans-serif">H</text></svg>
-        HMS USA &mdash; Halal certified ({{ hms_matched }} matched)
-      </a>
-      <a href="https://koshernear.me/" target="_blank" rel="noopener" class="cite-link">
-        <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#1e40af"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="sans-serif">K</text></svg>
-        KosherNearMe &mdash; Kosher listings ({{ knm_matched }} matched)
-      </a>
-    </div>
-    <h3>Supplementary Sources</h3>
-    <div class="cite-links">
-      <a href="https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j" target="_blank" rel="noopener" class="cite-link">
-        <svg viewBox="0 0 16 16" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#6b7280"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">D</text></svg>
-        DOHMH &mdash; NYC restaurant inspection cuisine field
-      </a>
-      <a href="https://www.yelp.com/" target="_blank" rel="noopener" class="cite-link">
-        <svg viewBox="0 0 16 16" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#dc2626"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">Y</text></svg>
-        Yelp &mdash; Business category tags
-      </a>
-      <span class="cite-link cite-muted">
-        <svg viewBox="0 0 16 16" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#9ca3af"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">N</text></svg>
-        Name &mdash; Venue name contains keyword
-      </span>
-    </div>
-    <h3>Venue Data</h3>
-    <ul class="cite-sources">
-      {% for src in sources %}
-      <li><strong>{{ src.name | e }}</strong>: {{ src.description | e }} ({{ "{:,}".format(src.count) }} venues)</li>
-      {% endfor %}
-    </ul>
   </div>
 </div>
 
@@ -165,7 +136,7 @@
   <div class="modal-content">
     <button class="modal-close" data-modal="pipeline-modal">&times;</button>
     <h2>Data Pipeline</h2>
-    <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp and Google Maps.</p>
+    <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp, Google Maps, OpenTable &amp; TripAdvisor.</p>
     <table class="pipeline-table">
       <thead><tr><th>Step</th><th>Result</th></tr></thead>
       <tbody>
@@ -187,7 +158,7 @@
   <div class="modal-content">
     <button class="modal-close" data-modal="flags-modal">&times;</button>
     <h2>Discovery Flags</h2>
-    <p class="modal-intro">Every venue is cross-referenced against Yelp and Google Maps. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
+    <p class="modal-intro">Every venue is cross-referenced against Yelp, Google Maps, OpenTable &amp; TripAdvisor. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
     <h3>Flag Types</h3>
     <ul class="xr-legend">
       <li><span class="xr-badge-icon" style="color:#2563eb">G</span> <strong>Google hidden gem</strong> &mdash; Found on Google with &lt;100 reviews but &gt;4&thinsp;★. Quietly excellent.</li>
@@ -204,7 +175,7 @@
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
 
 <!-- Venue data (generated at build time) -->
 <script src="venues.js?v={{ data_hash }}"></script>
@@ -233,18 +204,6 @@
       label: "DOHMH cuisine classification",
       color: "#6b7280",
     },
-    "Yelp": {
-      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="3" fill="#dc2626" stroke="#dc2626" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">Y</text></svg>`,
-      url: "https://www.yelp.com/",
-      label: "Yelp category",
-      color: "#dc2626",
-    },
-    "Name": {
-      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="3" fill="#9ca3af" stroke="#9ca3af" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">N</text></svg>`,
-      url: null,
-      label: "Venue name keyword",
-      color: "#9ca3af",
-    },
   };
 
   function dietTagHtml(diet, srcName) {
@@ -258,45 +217,29 @@
 
   // --- Map setup ---
   const map = L.map("map", {
+    preferCanvas: true,
     center: [40.7128, -74.006],
     zoom: 11,
-    preferCanvas: true,          // much faster for many markers
     maxZoom: 19,
   });
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
     maxZoom: 19,
   }).addTo(map);
 
-  // --- Marker cluster layer ---
-  const clusterGroup = L.markerClusterGroup({
-    chunkedLoading: true,        // don't freeze the UI
-    chunkInterval: 100,
-    chunkDelay: 10,
-    maxClusterRadius: function(zoom) {
-      // Aggressive clustering at low zoom, minimal at street level
-      if (zoom >= 18) return 5;
-      if (zoom >= 16) return 15;
-      if (zoom >= 14) return 30;
-      return 50;
-    },
-    spiderfyOnMaxZoom: true,
-    spiderfyOnEveryZoom: true,
-    spiderfyDistanceMultiplier: 1.5,
-  });
-  map.addLayer(clusterGroup);
+  // --- Supercluster index + viewport-based rendering ---
+  const SC_OPTS = { radius: 60, maxZoom: 17, minPoints: 2 };
+  let scIndex = new Supercluster(SC_OPTS);
+  const markerLayer = L.layerGroup().addTo(map);
 
   // --- Marker icons by source + grade ---
   const COLORS = {
-    dohmh: "#2563eb",   // blue
-    both:  "#7c3aed",   // purple
-    sla:   "#dc2626",   // red
+    dohmh: "#60a5fa",   // bright blue
+    both:  "#c084fc",   // bright purple
+    sla:   "#f87171",   // bright red
   };
   const DEFAULT_COLOR = "#6b7280";
-
-  // Icon cache to avoid creating thousands of duplicate DOM icon objects
-  const iconCache = {};
 
   // Build date for "new venue" detection (opened < 1 month ago)
   const NOW = new Date();
@@ -331,53 +274,8 @@
     return badges;
   }
 
-  // Legacy compat — returns the top-priority badge for the marker icon
-  function topBadge(venue) {
-    const b = venueBadges(venue);
-    return b.length ? b[0] : null;
-  }
-
-  function makeIcon(venue) {
-    const src = venue.source;
-    const grade = (venue.grade || "").trim().toUpperCase();
-
-    let label, color, cls;
-
-    if (src === "sla") {
-      label = "\uD83C\uDF78";  // 🍸
-      color = COLORS.sla;
-      cls = "vm-martini";
-    } else if (src === "both") {
-      label = (grade && grade !== "P" && grade !== "N" && grade !== "Z") ? grade : "?";
-      color = COLORS.both;
-      cls = "vm-letter";
-    } else {
-      label = (grade && grade !== "P" && grade !== "N" && grade !== "Z") ? grade : "?";
-      color = COLORS.dohmh;
-      cls = "vm-letter";
-    }
-
-    const badge = topBadge(venue);
-    const badgeHtml = badge ? `<span class="xr-star" style="color:${badge.color}">${badge.label}</span>` : "";
-    const badgeKey = badge ? badge.cls : "none";
-
-    const key = `${cls}-${color}-${label}-${badgeKey}`;
-    if (!iconCache[key]) {
-      iconCache[key] = L.divIcon({
-        className: `venue-marker ${cls}${badge ? ' has-star' : ''}`,
-        html: `<span style="color:${color}">${label}</span>${badgeHtml}`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      });
-    }
-    return iconCache[key];
-  }
-
-  // --- Build markers ---
-  const allMarkers = [];
-
-  for (const v of VENUE_DATA) {
-    if (v.lat == null || v.lng == null) continue;
+  // --- Build popup HTML on demand ---
+  function buildPopup(v) {
     const popupParts = [`<strong>${escHtml(v.name)}</strong>`];
     if (v.sla_name && v.sla_name.toLowerCase() !== v.name.toLowerCase()) {
       popupParts.push(`<em class="popup-aka">SLA: ${escHtml(v.sla_name)}</em>`);
@@ -395,8 +293,7 @@
     if (v.tags && v.tags.length) {
       popupParts.push(`<span class="popup-tags">${v.tags.map(escHtml).join(", ")}</span>`);
     }
-    // Cross-ref badges
-    const badges = venueBadges(v);
+    const badges = v._badges || [];
     if (badges.length) {
       for (const b of badges) {
         if (b.type === "google-gem") {
@@ -412,62 +309,194 @@
         }
       }
     }
-    // Review counts / ratings
     const reviewParts = [];
-    if (v.yr != null) {
-      reviewParts.push(`Yelp: ${v.yrt != null ? v.yrt + '★' : '?'} (${v.yr} reviews)`);
-    }
-    if (v.gr != null) {
-      reviewParts.push(`Google: ${v.grt != null ? v.grt + '★' : '?'} (${v.gr} reviews)`);
-    }
+    if (v.yr != null) reviewParts.push(`Yelp: ${v.yrt != null ? v.yrt + '★' : '?'} (${v.yr})`);
+    if (v.gr != null) reviewParts.push(`Google: ${v.grt != null ? v.grt + '★' : '?'} (${v.gr})`);
+    if (v.otr != null) reviewParts.push(`OT: ${v.otrt != null ? v.otrt + '★' : '?'} (${v.otr})`);
+    if (v.tar != null) reviewParts.push(`TA: ${v.tart != null ? v.tart + '★' : '?'} (${v.tar})`);
     if (reviewParts.length) {
       popupParts.push(`<span class="popup-reviews">${reviewParts.join(' · ')}</span>`);
     }
-
-    const marker = L.marker([v.lat, v.lng], { icon: makeIcon(v) });
-    marker.bindPopup(popupParts.join("<br>"), { maxWidth: 260 });
-
-    // Attach venue data for filtering
-    marker._venue = v;
-    allMarkers.push(marker);
+    return popupParts.join("<br>");
   }
 
-  // Initial add
-  clusterGroup.addLayers(allMarkers);
+  // --- Index all venues ---
+  const allVenuesUnfiltered = [];
+  for (const v of VENUE_DATA) {
+    if (v.lat == null || v.lng == null) continue;
+    v._badges = venueBadges(v);
+    allVenuesUnfiltered.push(v);
+  }
+  let allVenues = allVenuesUnfiltered.slice();
+
+  function venuesToFeatures(venues) {
+    return venues.map((v, i) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [v.lng, v.lat] },
+      properties: { _vi: i },
+    }));
+  }
+
+  function venueColor(v) { return COLORS[v.source] || DEFAULT_COLOR; }
+
+  // Load initial index
+  scIndex.load(venuesToFeatures(allVenues));
+
+  // --- Viewport-based rendering (replaces MarkerCluster) ---
+  let _openPopupVenueIdx = null;  // track which venue has an open popup across re-renders
+
+  function renderMarkers() {
+    // Remember open popup before clearing
+    markerLayer.eachLayer(layer => {
+      if (layer._popup && layer._popup.isOpen() && layer._venue) {
+        _openPopupVenueIdx = allVenues.indexOf(layer._venue);
+      }
+    });
+
+    markerLayer.clearLayers();
+    const bounds = map.getBounds();
+    const zoom = Math.floor(map.getZoom());
+    const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+    const features = scIndex.getClusters(bbox, zoom);
+
+    let reopenCircle = null;
+
+    for (const f of features) {
+      const [lng, lat] = f.geometry.coordinates;
+
+      if (f.properties.cluster) {
+        // --- Cluster icon ---
+        const count = f.properties.point_count;
+        const abbr = f.properties.point_count_abbreviated;
+        const sz = count < 100 ? 30 : count < 1000 ? 36 : 42;
+        const clusterId = f.properties.cluster_id;
+        const icon = L.divIcon({
+          className: "sc-cluster" + (count < 100 ? " sc-sm" : count < 1000 ? " sc-md" : " sc-lg"),
+          html: `<div>${abbr}</div>`,
+          iconSize: [sz, sz],
+          iconAnchor: [sz / 2, sz / 2],
+        });
+        const cm = L.marker([lat, lng], { icon });
+        cm.on("click", () => {
+          map.setView([lat, lng], scIndex.getClusterExpansionZoom(clusterId));
+        });
+        markerLayer.addLayer(cm);
+      } else {
+        // --- Individual venue (canvas circle) ---
+        const v = allVenues[f.properties._vi];
+        const color = venueColor(v);
+        const isMobile = window.innerWidth <= 768;
+        const r = isMobile
+          ? (zoom >= 17 ? 10 : zoom >= 15 ? 9 : 8)
+          : (zoom >= 17 ? 6 : zoom >= 15 ? 5 : 4);
+        const circle = L.circleMarker([lat, lng], {
+          radius: r,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.85,
+          weight: 1,
+          opacity: 0.9,
+        });
+        circle.on("click", function () {
+          if (!this._popup) this.bindPopup(buildPopup(v), { maxWidth: 260, autoPan: true });
+          _openPopupVenueIdx = allVenues.indexOf(v);
+          this.openPopup();
+        });
+        circle._venue = v;
+        markerLayer.addLayer(circle);
+
+        // If this venue had a popup open before re-render, restore it
+        if (_openPopupVenueIdx !== null && allVenues.indexOf(v) === _openPopupVenueIdx) {
+          reopenCircle = circle;
+        }
+      }
+    }
+
+    // Restore popup after re-render (e.g. after auto-pan triggered moveend)
+    if (reopenCircle) {
+      const rv = reopenCircle._venue;
+      if (!reopenCircle._popup) reopenCircle.bindPopup(buildPopup(rv), { maxWidth: 260, autoPan: false });
+      reopenCircle.openPopup();
+      _openPopupVenueIdx = null;
+    }
+  }
+
+  map.on("moveend", renderMarkers);
+  renderMarkers();
+
+  // Precompute initial counts for filters
+  function updateFilterCounts(query) {
+    const pool = query
+      ? allVenuesUnfiltered.filter(v =>
+          [v.name, v.cuisine, v.address, v.borough, ...(v.diet || [])].join(" ").toLowerCase().includes(query)
+        )
+      : allVenuesUnfiltered;
+
+    document.querySelectorAll('.filter-count[data-diet]').forEach(sp => {
+      const d = sp.dataset.diet;
+      if (!d) { sp.textContent = pool.length; return; }
+      sp.textContent = pool.filter(v => v.diet && v.diet.includes(d)).length;
+    });
+    document.querySelectorAll('.filter-count[data-flag]').forEach(sp => {
+      const f = sp.dataset.flag;
+      let n;
+      if (f === 'any') n = pool.filter(v => v._badges.length > 0).length;
+      else n = pool.filter(v => v._badges.some(b => b.type === f)).length;
+      sp.textContent = n;
+    });
+  }
+  updateFilterCounts('');
 
   // --- Filtering ---
   const searchInput = document.getElementById("search-input");
   const applyBtn = document.getElementById("apply-btn");
   const clearBtn = document.getElementById("search-clear");
 
+  // Mobile top-bar search elements
+  const searchInputM = document.getElementById("search-input-mobile");
+  const applyBtnM = document.getElementById("apply-btn-mobile");
+  const clearBtnM = document.getElementById("search-clear-mobile");
+
+  // Sync: typing in either input mirrors to the other
+  function syncSearch(from, to, clearFrom) {
+    to.value = from.value;
+    clearFrom.style.display = from.value ? "inline-flex" : "none";
+  }
+  searchInput.addEventListener("input", () => syncSearch(searchInput, searchInputM, clearBtn));
+  searchInputM.addEventListener("input", () => syncSearch(searchInputM, searchInput, clearBtnM));
+
   applyBtn.addEventListener("click", applyFilters);
-  clearBtn.addEventListener("click", () => { searchInput.value = ""; clearBtn.style.display = "none"; applyFilters(); });
+  applyBtnM.addEventListener("click", applyFilters);
+  clearBtn.addEventListener("click", () => { searchInput.value = searchInputM.value = ""; clearBtn.style.display = "none"; clearBtnM.style.display = "none"; applyFilters(); });
+  clearBtnM.addEventListener("click", () => { searchInput.value = searchInputM.value = ""; clearBtn.style.display = "none"; clearBtnM.style.display = "none"; applyFilters(); });
   searchInput.addEventListener("keyup", e => { if (e.key === "Enter") applyFilters(); });
+  searchInputM.addEventListener("keyup", e => { if (e.key === "Enter") { applyFilters(); searchInputM.blur(); } });
   // Toggle clear button visibility
   searchInput.addEventListener("input", () => {
     clearBtn.style.display = searchInput.value ? "inline-flex" : "none";
   });
 
-  // Source & diet radios auto-apply
-  document.querySelectorAll('input[name="source"], input[name="diet"]').forEach(r =>
+  // Source & diet & flag radios auto-apply
+  document.querySelectorAll('input[name="diet"], input[name="flag"]').forEach(r =>
     r.addEventListener("change", applyFilters)
   );
 
+  const xrList = document.getElementById("xr-venue-list");
+
   function applyFilters() {
-    const srcVal = document.querySelector('input[name="source"]:checked').value;
     const dietVal = document.querySelector('input[name="diet"]:checked').value;
-    const query = searchInput.value.trim().toLowerCase();
+    const flagVal = document.querySelector('input[name="flag"]:checked').value;
+    const query = (searchInput.value || searchInputM.value).trim().toLowerCase();
 
-    clusterGroup.clearLayers();
+    xrList.innerHTML = "";
 
-    const visible = allMarkers.filter(m => {
-      const v = m._venue;
-      // Source filter
-      if (srcVal === "dohmh" && v.source !== "dohmh" && v.source !== "both") return false;
-      if (srcVal === "sla" && v.source !== "sla" && v.source !== "both") return false;
-      // Diet filter
+    allVenues = allVenuesUnfiltered.filter(v => {
       if (dietVal && (!v.diet || !v.diet.includes(dietVal))) return false;
-      // Search
+      if (flagVal) {
+        const badges = v._badges;
+        if (flagVal === "any") { if (!badges.length) return false; }
+        else { if (!badges.some(b => b.type === flagVal)) return false; }
+      }
       if (query) {
         const hay = [v.name, v.cuisine, v.address, v.borough, ...(v.diet || [])].join(" ").toLowerCase();
         if (!hay.includes(query)) return false;
@@ -475,7 +504,36 @@
       return true;
     });
 
-    clusterGroup.addLayers(visible);
+    // Rebuild Supercluster index with filtered set
+    scIndex = new Supercluster(SC_OPTS);
+    scIndex.load(venuesToFeatures(allVenues));
+    renderMarkers();
+
+    updateFilterCounts(query);
+
+    // Build venue list for flag filters
+    if (flagVal) {
+      xrList.innerHTML = allVenues.filter(v => {
+        const badges = v._badges;
+        if (flagVal === "any") return badges.length > 0;
+        return badges.some(b => b.type === flagVal);
+      }).map(v => {
+        const badges = v._badges;
+        const top = flagVal === "any" ? badges[0] : badges.find(b => b.type === flagVal) || badges[0];
+        let detail = "";
+        if (top.type === "google-gem") detail = `${v.grt}★ · ${v.gr} reviews`;
+        else if (top.type === "yelp-gem") detail = `${v.yrt}★ · ${v.yr} reviews`;
+        else if (top.type === "new-venue") detail = `opened ${v.opened}`;
+        return `<a class="xr-venue-item" data-lat="${v.lat}" data-lng="${v.lng}" style="border-left:3px solid ${top.color}">` +
+          `<span class="xr-badge-icon" style="color:${top.color}">${top.label}</span> ${escHtml(v.name)}` +
+          `<small>${detail || escHtml(v.address || "")}</small></a>`;
+      }).join("");
+      xrList.querySelectorAll(".xr-venue-item").forEach((el) => {
+        el.addEventListener("click", () => {
+          map.setView([parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)], 18);
+        });
+      });
+    }
   }
 
   // --- Modals ---
@@ -509,67 +567,8 @@
     return div.innerHTML;
   }
 
-  // --- Badge filters ---
-  const xrList = document.getElementById("xr-venue-list");
-  let activeBadgeFilter = null;
-
-  function markersForBadge(type) {
-    return allMarkers.filter(m => {
-      const badges = venueBadges(m._venue);
-      if (type === "any") return badges.length > 0;
-      return badges.some(b => b.type === type);
-    });
-  }
-
-  document.querySelectorAll(".badge-filter-btn").forEach(btn => {
-    const type = btn.dataset.badge;
-    const count = markersForBadge(type).length;
-    btn.innerHTML += ` (${count})`;
-    if (count === 0) btn.style.opacity = "0.4";
-
-    btn.addEventListener("click", () => {
-      const wasActive = btn.classList.contains("active");
-      document.querySelectorAll(".badge-filter-btn").forEach(b => b.classList.remove("active"));
-      clusterGroup.clearLayers();
-      xrList.innerHTML = "";
-
-      if (wasActive) {
-        activeBadgeFilter = null;
-        clusterGroup.addLayers(allMarkers);
-      } else {
-        activeBadgeFilter = type;
-        btn.classList.add("active");
-        const filtered = markersForBadge(type);
-        clusterGroup.addLayers(filtered);
-        xrList.innerHTML = filtered.map(m => {
-          const v = m._venue;
-          const badges = venueBadges(v);
-          const top = type === "any" ? badges[0] : badges.find(b => b.type === type) || badges[0];
-          let detail = "";
-          if (top.type === "google-gem") detail = `${v.grt}★ · ${v.gr} reviews`;
-          else if (top.type === "yelp-gem") detail = `${v.yrt}★ · ${v.yr} reviews`;
-          else if (top.type === "new-venue") detail = `opened ${v.opened}`;
-          return `<a class="xr-venue-item" data-lat="${v.lat}" data-lng="${v.lng}" style="border-left:3px solid ${top.color}">` +
-            `<span class="xr-badge-icon" style="color:${top.color}">${top.label}</span> ${escHtml(v.name)}` +
-            `<small>${detail || escHtml(v.address || "")}</small></a>`;
-        }).join("");
-        xrList.querySelectorAll(".xr-venue-item").forEach((el, i) => {
-          el.addEventListener("click", () => {
-            map.setView([parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)], 18);
-            filtered[i].openPopup();
-          });
-        });
-      }
-    });
-  });
-
-  // --- Toggle sidebar on mobile ---
-  const sidebar = document.getElementById("sidebar");
-  const toggleBtn = document.createElement("button");
-  toggleBtn.id = "sidebar-toggle";
-  toggleBtn.textContent = "☰";
-  toggleBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
-  document.body.appendChild(toggleBtn);
+  // --- Invalidate map size when layout changes (mobile stacked) ---
+  window.addEventListener("resize", () => map.invalidateSize());
 })();
 </script>
 </body>

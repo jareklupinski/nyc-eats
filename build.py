@@ -504,6 +504,22 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
                     v["grt"] = f["google_rating"]   # google rating
                 if f.get("yelp_categories"):
                     v["yelp_cats"] = f["yelp_categories"]
+                # OpenTable
+                v["xr_ot"] = f.get("opentable", "unchecked")
+                if f.get("opentable_reviews") is not None:
+                    v["otr"] = f["opentable_reviews"]
+                if f.get("opentable_rating") is not None:
+                    v["otrt"] = f["opentable_rating"]
+                if f.get("opentable_url"):
+                    v["ot_url"] = f["opentable_url"]
+                # TripAdvisor
+                v["xr_ta"] = f.get("tripadvisor", "unchecked")
+                if f.get("tripadvisor_reviews") is not None:
+                    v["tar"] = f["tripadvisor_reviews"]
+                if f.get("tripadvisor_rating") is not None:
+                    v["tart"] = f["tripadvisor_rating"]
+                if f.get("tripadvisor_url"):
+                    v["ta_url"] = f["tripadvisor_url"]
                 # Override coordinates with more precise ones from Google/Yelp
                 # but only if they fall within the venue's borough bbox.
                 # Try Google first (preferred), fall back to Yelp.
@@ -524,8 +540,9 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
                         log.debug("Crossref %s coords rejected for %s at %s (%s): %.5f,%.5f outside %s bbox",
                                   src, v.get("name"), v.get("address"), v.get("borough"), slat, slng, boro)
                 xref_checked += 1
-        log.info("Cross-ref: stamped %d venues (%d coords upgraded) | yelp=%s google=%s",
-                 xref_checked, coords_upgraded, xs.get("yelp", {}), xs.get("google", {}))
+        log.info("Cross-ref: stamped %d venues (%d coords upgraded) | yelp=%s google=%s opentable=%s tripadvisor=%s",
+                 xref_checked, coords_upgraded, xs.get("yelp", {}), xs.get("google", {}),
+                 xs.get("opentable", {}), xs.get("tripadvisor", {}))
     else:
         log.info("Cross-ref: no DB yet — skipping (run crossref.py first)")
 
@@ -657,17 +674,6 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
         if cuisine == "Jewish/Kosher" and "kosher" not in diets:
             diets["kosher"] = "DOHMH"
 
-        # --- Supplementary: venue name keywords ---
-        nl = v.get("name", "").lower()
-        if "halal" in nl and "halal" not in diets:
-            diets["halal"] = "Name"
-        if "kosher" in nl and "kosher" not in diets:
-            diets["kosher"] = "Name"
-        if "vegan" in nl and "vegan" not in diets:
-            diets["vegan"] = "Name"
-        if "vegetarian" in nl and "vegetarian" not in diets:
-            diets["vegetarian"] = "Name"
-
         # --- Supplementary: Yelp categories ---
         for yc in v.get("yelp_cats", []):
             dt = _YELP_DIET.get(yc)
@@ -747,6 +753,7 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
         pipeline_stats=pipeline_stats,
         merge_stats=merge_stats,
         all_diets=all_diets,
+        diet_counts=diet_counts,
         diet_source_stats=diet_source_counts,
         hms_matched=hms_matched,
         knm_matched=knm_matched,

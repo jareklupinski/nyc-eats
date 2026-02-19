@@ -35,12 +35,20 @@ DB_PATH = ROOT / ".cache" / "crossref.db"
 # --- API configuration (set via env or .env) ---
 YELP_API_KEY = os.environ.get("YELP_API_KEY", "")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+TRIPADVISOR_API_KEY = os.environ.get("TRIPADVISOR_API_KEY", "")
 YELP_DAILY_LIMIT = int(os.environ.get("YELP_DAILY_LIMIT", "4500"))
 GOOGLE_DAILY_LIMIT = int(os.environ.get("GOOGLE_DAILY_LIMIT", "1000"))
+OPENTABLE_DAILY_LIMIT = int(os.environ.get("OPENTABLE_DAILY_LIMIT", "2000"))
+TRIPADVISOR_DAILY_LIMIT = int(os.environ.get("TRIPADVISOR_DAILY_LIMIT", "4500"))
 
 # Requests per second (conservative)
 YELP_QPS = 4
 GOOGLE_QPS = 8
+OPENTABLE_QPS = 3
+TRIPADVISOR_QPS = 4
+
+# NYC center for proximity searches
+_NYC_LAT, _NYC_LNG = 40.7128, -74.0060
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +76,7 @@ def _name_similarity(a: str, b: str) -> float:
 
 def init_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS crossref (
@@ -97,6 +105,21 @@ def init_db() -> sqlite3.Connection:
         ("yelp_lat",            "REAL"),
         ("yelp_lng",            "REAL"),
         ("yelp_categories",     "TEXT"),
+        # OpenTable
+        ("opentable_status",     "TEXT DEFAULT 'unchecked'"),
+        ("opentable_checked_at", "TEXT"),
+        ("opentable_rid",        "TEXT"),
+        ("opentable_url",        "TEXT"),
+        ("opentable_rating",     "REAL"),
+        ("opentable_review_count", "INTEGER"),
+        ("opentable_price",      "TEXT"),
+        # TripAdvisor
+        ("tripadvisor_status",     "TEXT DEFAULT 'unchecked'"),
+        ("tripadvisor_checked_at", "TEXT"),
+        ("tripadvisor_location_id", "TEXT"),
+        ("tripadvisor_url",        "TEXT"),
+        ("tripadvisor_rating",     "REAL"),
+        ("tripadvisor_review_count", "INTEGER"),
     ]
     for col, typ in migrations:
         if col not in existing_cols:
@@ -319,6 +342,244 @@ def check_google(
 
     conn.commit()
     log.info("Google: finished %d checks", checked)
+    return checked
+
+
+# ---------------------------------------------------------------------------
+# OpenTable  (autocomplete search)
+# ---------------------------------------------------------------------------
+
+_OT_AUTOCOMPLETE = "https://www.opentable.com/dapi/fe/gql"
+_OT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Origin": "https://www.opentable.com",
+    "Referer": "https://www.opentable.com/",
+}
+
+# GQL autocomplete query (stable, used by the OT search bar)
+_OT_GQL_QUERY = """
+query Autocomplete($term: String!, $latitude: Float!, $longitude: Float!) {
+  autocomplete(term: $term, latitude: $latitude, longitude: $longitude) {
+    restaurants {
+      rid
+      name
+      urls { profileLink }
+      statistics { reviews { allTimeSummary { overallRating reviewCount } } }
+      priceBand
+    }
+  }
+}
+"""
+
+
+def check_opentable(conn: sqlite3.Connection, limit: int | None = None) -> int:
+    """Search OpenTable for each unchecked venue via their autocomplete GQL."""
+    limit = limit or OPENTABLE_DAILY_LIMIT
+    rows = conn.execute(
+        "SELECT venue_key, venue_name, venue_address, venue_borough "
+        "FROM crossref WHERE (opentable_status IS NULL OR opentable_status = 'unchecked') "
+        "LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        log.info("OpenTable: nothing to check")
+        return 0
+
+    log.info("OpenTable: %d venues to check (limit %d)", len(rows), limit)
+    checked = 0
+
+    for key, name, address, borough in rows:
+        try:
+            resp = requests.post(
+                _OT_AUTOCOMPLETE,
+                headers=_OT_HEADERS,
+                json={
+                    "operationName": "Autocomplete",
+                    "variables": {
+                        "term": f"{name} {borough}",
+                        "latitude": _NYC_LAT,
+                        "longitude": _NYC_LNG,
+                    },
+                    "query": _OT_GQL_QUERY,
+                },
+                timeout=15,
+            )
+            if resp.status_code == 429:
+                log.warning("OpenTable rate-limited after %d requests", checked)
+                conn.commit()
+                return checked
+            resp.raise_for_status()
+
+            data = resp.json()
+            restaurants = (
+                data.get("data", {}).get("autocomplete", {}).get("restaurants") or []
+            )
+
+            found = False
+            ot_rid = ot_url = ot_price = None
+            ot_rating = ot_rc = None
+            for r in restaurants:
+                if _name_similarity(name, r.get("name", "")) >= 0.45:
+                    found = True
+                    ot_rid = str(r.get("rid", ""))
+                    urls = r.get("urls") or {}
+                    ot_url = urls.get("profileLink")
+                    if ot_url and not ot_url.startswith("http"):
+                        ot_url = f"https://www.opentable.com{ot_url}"
+                    stats = (r.get("statistics") or {}).get("reviews", {}).get(
+                        "allTimeSummary", {}
+                    )
+                    ot_rating = stats.get("overallRating")
+                    ot_rc = stats.get("reviewCount")
+                    ot_price = r.get("priceBand")
+                    break
+
+            conn.execute(
+                "UPDATE crossref SET opentable_status=?, opentable_checked_at=?, "
+                "opentable_rid=?, opentable_url=?, opentable_rating=?, "
+                "opentable_review_count=?, opentable_price=? "
+                "WHERE venue_key=?",
+                (
+                    "found" if found else "not_found",
+                    datetime.now(timezone.utc).isoformat(),
+                    ot_rid, ot_url, ot_rating, ot_rc, ot_price, key,
+                ),
+            )
+        except requests.RequestException as exc:
+            log.error("OpenTable error for %s: %s", name, exc)
+            conn.execute(
+                "UPDATE crossref SET opentable_status='error', opentable_checked_at=? "
+                "WHERE venue_key=?",
+                (datetime.now(timezone.utc).isoformat(), key),
+            )
+
+        checked += 1
+        if checked % 100 == 0:
+            conn.commit()
+            log.info("OpenTable: %d / %d checked", checked, len(rows))
+        time.sleep(1.0 / OPENTABLE_QPS)
+
+    conn.commit()
+    log.info("OpenTable: finished %d checks", checked)
+    return checked
+
+
+# ---------------------------------------------------------------------------
+# TripAdvisor Content API  (requires free API key)
+# ---------------------------------------------------------------------------
+
+_TA_SEARCH = "https://api.content.tripadvisor.com/api/v1/location/search"
+_TA_DETAILS = "https://api.content.tripadvisor.com/api/v1/location/{location_id}/details"
+
+
+def check_tripadvisor(conn: sqlite3.Connection, limit: int | None = None) -> int:
+    """Search TripAdvisor for each unchecked venue via the Content API (free tier).
+
+    Requires TRIPADVISOR_API_KEY set as env var.
+    Free tier: 5 000 calls/month.  We use 2 calls per venue (search + details).
+    """
+    if not TRIPADVISOR_API_KEY:
+        log.warning("TRIPADVISOR_API_KEY not set — skipping")
+        return 0
+
+    limit = limit or TRIPADVISOR_DAILY_LIMIT
+    rows = conn.execute(
+        "SELECT venue_key, venue_name, venue_address, venue_borough "
+        "FROM crossref WHERE (tripadvisor_status IS NULL OR tripadvisor_status = 'unchecked') "
+        "LIMIT ?",
+        (limit,),
+    ).fetchall()
+    if not rows:
+        log.info("TripAdvisor: nothing to check")
+        return 0
+
+    log.info("TripAdvisor: %d venues to check (limit %d)", len(rows), limit)
+    headers = {"Accept": "application/json"}
+    checked = 0
+
+    for key, name, address, borough in rows:
+        try:
+            # Step 1: search
+            resp = requests.get(
+                _TA_SEARCH,
+                headers=headers,
+                params={
+                    "key": TRIPADVISOR_API_KEY,
+                    "searchQuery": f"{name}, {address}, New York",
+                    "category": "restaurants",
+                    "language": "en",
+                    "latLong": f"{_NYC_LAT},{_NYC_LNG}",
+                },
+                timeout=15,
+            )
+            if resp.status_code == 429:
+                log.warning("TripAdvisor rate-limited after %d requests", checked)
+                conn.commit()
+                return checked
+            resp.raise_for_status()
+
+            results = resp.json().get("data", [])
+            found = False
+            ta_loc_id = ta_url = None
+            ta_rating = ta_rc = None
+
+            for r in results:
+                if _name_similarity(name, r.get("name", "")) >= 0.45:
+                    ta_loc_id = str(r.get("location_id", ""))
+                    found = True
+                    break
+
+            # Step 2: get details for rating/reviews
+            if found and ta_loc_id:
+                time.sleep(1.0 / TRIPADVISOR_QPS)
+                d_resp = requests.get(
+                    _TA_DETAILS.format(location_id=ta_loc_id),
+                    headers=headers,
+                    params={
+                        "key": TRIPADVISOR_API_KEY,
+                        "language": "en",
+                        "currency": "USD",
+                    },
+                    timeout=15,
+                )
+                if d_resp.status_code == 200:
+                    det = d_resp.json()
+                    ta_rating = det.get("rating")
+                    if ta_rating:
+                        ta_rating = float(ta_rating)
+                    ta_rc = det.get("num_reviews")
+                    if ta_rc:
+                        ta_rc = int(ta_rc)
+                    ta_url = det.get("web_url")
+
+            conn.execute(
+                "UPDATE crossref SET tripadvisor_status=?, tripadvisor_checked_at=?, "
+                "tripadvisor_location_id=?, tripadvisor_url=?, tripadvisor_rating=?, "
+                "tripadvisor_review_count=? WHERE venue_key=?",
+                (
+                    "found" if found else "not_found",
+                    datetime.now(timezone.utc).isoformat(),
+                    ta_loc_id, ta_url, ta_rating, ta_rc, key,
+                ),
+            )
+        except requests.RequestException as exc:
+            log.error("TripAdvisor error for %s: %s", name, exc)
+            conn.execute(
+                "UPDATE crossref SET tripadvisor_status='error', tripadvisor_checked_at=? "
+                "WHERE venue_key=?",
+                (datetime.now(timezone.utc).isoformat(), key),
+            )
+
+        checked += 1
+        if checked % 100 == 0:
+            conn.commit()
+            log.info("TripAdvisor: %d / %d checked", checked, len(rows))
+        time.sleep(1.0 / TRIPADVISOR_QPS)
+
+    conn.commit()
+    log.info("TripAdvisor: finished %d checks", checked)
     return checked
 
 
@@ -549,16 +810,20 @@ def backfill_coords_yelp(conn: sqlite3.Connection, limit: int = 1000) -> int:
 # ---------------------------------------------------------------------------
 
 def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
-    """Return {venue_key: {yelp, google, review counts, ratings, coords}} for all checked venues."""
+    """Return {venue_key: {yelp, google, opentable, tripadvisor, review counts, ratings, coords}} for all checked venues."""
     flags: dict[str, dict] = {}
     for row in conn.execute(
         "SELECT venue_key, yelp_status, google_status, yelp_url, "
         "yelp_review_count, yelp_rating, google_rating_count, google_rating, "
-        "google_lat, google_lng, yelp_lat, yelp_lng, yelp_categories "
+        "google_lat, google_lng, yelp_lat, yelp_lng, yelp_categories, "
+        "opentable_status, opentable_url, opentable_rating, opentable_review_count, "
+        "tripadvisor_status, tripadvisor_url, tripadvisor_rating, tripadvisor_review_count "
         "FROM crossref"
     ):
         (key, yelp_st, google_st, yelp_url, y_rc, y_rat, g_rc, g_rat,
-         g_lat, g_lng, y_lat, y_lng, y_cats) = row
+         g_lat, g_lng, y_lat, y_lng, y_cats,
+         ot_st, ot_url, ot_rat, ot_rc,
+         ta_st, ta_url, ta_rat, ta_rc) = row
         flags[key] = {
             "yelp": yelp_st,
             "google": google_st,
@@ -572,6 +837,14 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
             "yelp_lat": y_lat,
             "yelp_lng": y_lng,
             "yelp_categories": y_cats.split(",") if y_cats else [],
+            "opentable": ot_st or "unchecked",
+            "opentable_url": ot_url,
+            "opentable_rating": ot_rat,
+            "opentable_reviews": ot_rc,
+            "tripadvisor": ta_st or "unchecked",
+            "tripadvisor_url": ta_url,
+            "tripadvisor_rating": ta_rat,
+            "tripadvisor_reviews": ta_rc,
         }
     return flags
 
@@ -579,13 +852,13 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
 def get_stats(conn: sqlite3.Connection) -> dict:
     """Summary counts per service."""
     stats: dict[str, dict[str, int]] = {}
-    for svc in ("yelp", "google"):
+    for svc in ("yelp", "google", "opentable", "tripadvisor"):
         col = f"{svc}_status"
         counts: dict[str, int] = {}
         for row in conn.execute(
             f"SELECT {col}, COUNT(*) FROM crossref GROUP BY {col}"
         ):
-            counts[row[0]] = row[1]
+            counts[row[0] or "unchecked"] = row[1]
         stats[svc] = counts
     return stats
 
@@ -645,10 +918,12 @@ def main():
         datefmt="%H:%M:%S",
     )
 
-    parser = argparse.ArgumentParser(description="Cross-reference venues vs Yelp & Google")
+    parser = argparse.ArgumentParser(description="Cross-reference venues vs Yelp, Google, OpenTable & TripAdvisor")
     parser.add_argument("--yelp-limit", type=int, default=None)
     parser.add_argument("--google-limit", type=int, default=None)
     parser.add_argument("--google-borough", default="MANHATTAN")
+    parser.add_argument("--opentable-limit", type=int, default=None)
+    parser.add_argument("--tripadvisor-limit", type=int, default=None)
     parser.add_argument("--stats", action="store_true", help="Print stats and exit")
     parser.add_argument("--backfill", action="store_true",
                         help="Re-check 'found' venues missing review counts")
@@ -728,11 +1003,15 @@ def main():
     t0 = time.time()
     yelp_n = check_yelp(conn, limit=args.yelp_limit)
     google_n = check_google(conn, limit=args.google_limit, borough_filter=args.google_borough)
+    ot_n = check_opentable(conn, limit=args.opentable_limit)
+    ta_n = check_tripadvisor(conn, limit=args.tripadvisor_limit)
     elapsed = time.time() - t0
 
     stats = get_stats(conn)
-    log.info("Yelp:   %d checked this run | %s", yelp_n, stats.get("yelp", {}))
-    log.info("Google: %d checked this run | %s", google_n, stats.get("google", {}))
+    log.info("Yelp:        %d checked this run | %s", yelp_n, stats.get("yelp", {}))
+    log.info("Google:      %d checked this run | %s", google_n, stats.get("google", {}))
+    log.info("OpenTable:   %d checked this run | %s", ot_n, stats.get("opentable", {}))
+    log.info("TripAdvisor: %d checked this run | %s", ta_n, stats.get("tripadvisor", {}))
     log.info("Cross-reference completed in %.1fs", elapsed)
 
     conn.close()
