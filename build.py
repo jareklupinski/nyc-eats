@@ -739,6 +739,21 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
             if f.name == "style.css":
                 css_hash = hashlib.sha256(f.read_bytes()).hexdigest()[:12]
 
+    # Copy TuiCss dist assets (CSS, JS, fonts, images)
+    tuicss_dist = ROOT / "vendor" / "TuiCss" / "dist"
+    if tuicss_dist.exists():
+        for name in ("tuicss.min.css", "tuicss.min.js"):
+            src = tuicss_dist / name
+            if src.exists():
+                shutil.copy2(src, DIST / name)
+        for subdir in ("fonts", "images"):
+            src_dir = tuicss_dist / subdir
+            dst_dir = DIST / subdir
+            if src_dir.exists():
+                if dst_dir.exists():
+                    shutil.rmtree(dst_dir)
+                shutil.copytree(src_dir, dst_dir)
+
     # Render HTML
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     template = env.get_template("index.html")

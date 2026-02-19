@@ -2,17 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>NYC Eats — Every Restaurant in New York City</title>
   <meta name="description" content="Interactive map of {{ "{:,}".format(venue_count) }} restaurants, bars, and liquor licenses across NYC. Built from DOHMH inspections, SLA licenses, cross-referenced with Yelp and Google Maps.">
   <meta name="author" content="Jarek Lupinski">
-  <meta name="theme-color" content="#0a0a0a">
+  <meta name="theme-color" content="#000000">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
-  <!-- Brutalist font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- TuiCss framework -->
+  <link rel="stylesheet" href="tuicss.min.css">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
@@ -58,7 +56,7 @@
     <button id="pipeline-info-btn" type="button" class="info-btn" title="Data pipeline">ⓘ</button>
   </div>
 
-  <hr class="sidebar-divider">
+  <div class="tui-divider"></div>
 
   <!-- Search -->
   <div class="search-wrap">
@@ -67,7 +65,7 @@
     <button id="apply-btn" type="button" aria-label="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/><path d="M15.5 15.5L21 21"/></svg></button>
   </div>
 
-  <hr class="sidebar-divider">
+  <div class="tui-divider"></div>
 
   {% if all_diets %}
   <!-- Diet -->
@@ -80,7 +78,7 @@
     {% endfor %}
   </div>
 
-  <hr class="sidebar-divider">
+  <div class="tui-divider"></div>
   {% endif %}
 
   <!-- Flags -->
@@ -93,11 +91,14 @@
     <label><input type="radio" name="flag" value="new-venue"> <span style="color:#f59e0b">⏱</span> New <span class="filter-count" data-flag="new-venue"></span></label>
     <label><input type="radio" name="flag" value="not-on-yelp"> <span style="color:#dc2626">★</span> No Yelp <span class="filter-count" data-flag="not-on-yelp"></span></label>
     <label><input type="radio" name="flag" value="not-on-google"> <span style="color:#2563eb">★</span> No Google <span class="filter-count" data-flag="not-on-google"></span></label>
+    <label><input type="radio" name="flag" value="ot-gem"> <span style="color:#16a34a">O</span> OT Gems <span class="filter-count" data-flag="ot-gem"></span></label>
+    <label><input type="radio" name="flag" value="not-on-ot"> <span style="color:#16a34a">★</span> No OT <span class="filter-count" data-flag="not-on-ot"></span></label>
+    <label><input type="radio" name="flag" value="ta-gem"> <span style="color:#06b6d4">T</span> TA Gems <span class="filter-count" data-flag="ta-gem"></span></label>
+    <label><input type="radio" name="flag" value="not-on-ta"> <span style="color:#06b6d4">★</span> No TA <span class="filter-count" data-flag="not-on-ta"></span></label>
     <label><input type="radio" name="flag" value="any"> All flagged <span class="filter-count" data-flag="any"></span></label>
   </div>
-  <div id="xr-venue-list" class="xr-venue-list"></div>
 
-  <hr class="sidebar-divider">
+  <div class="tui-divider"></div>
 
   <!-- Updated timestamp -->
   <div class="sidebar-updated">Updated: ༼ つ ◕_◕ ༽つ {{ build_time[:10] }}</div>
@@ -105,68 +106,79 @@
 
 <!-- Citation Modal (Diet) -->
 <div id="cite-modal" class="modal-overlay" hidden>
-  <div class="modal-content">
-    <button class="modal-close" data-modal="cite-modal">&times;</button>
-    <h2>Diet Data Sources</h2>
-    {% set src_urls = {
-      'HMS USA': 'https://www.hmsusa.org/certified-listing',
-      'KosherNearMe': 'https://koshernear.me/',
-      'DOHMH': 'https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j'
-    } %}
-    {% set src_labels = {'DOHMH': 'NYC DOHMH Restaurant Inspection Results'} %}
-    <table class="cite-table">
-      <thead><tr><th>Diet</th><th>Source</th><th>Count</th></tr></thead>
-      <tbody>
-        {% for diet, src_map in diet_source_stats.items() | sort %}
-        {% for src, cnt in src_map.items() | sort(attribute='1', reverse=true) %}
-        <tr>
-          {% if loop.first %}<td rowspan="{{ src_map | length }}"><strong>{{ diet }}</strong></td>{% endif %}
-          <td>{% if src in src_urls %}<a href="{{ src_urls[src] }}" target="_blank" rel="noopener">{{ src_labels.get(src, src) }}</a>{% else %}{{ src }}{% endif %}</td>
-          <td>{{ cnt }}</td>
-        </tr>
-        {% endfor %}
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="tui-window">
+    <fieldset class="tui-fieldset">
+      <legend>Diet Data Sources</legend>
+      <button class="modal-close" data-modal="cite-modal">&times;</button>
+      {% set src_urls = {
+        'HMS USA': 'https://www.hmsusa.org/certified-listing',
+        'KosherNearMe': 'https://koshernear.me/',
+        'DOHMH': 'https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j'
+      } %}
+      {% set src_labels = {'DOHMH': 'NYC DOHMH Restaurant Inspection Results'} %}
+      <table class="tui-table hovered">
+        <thead><tr><th>Diet</th><th>Source</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for diet, src_map in diet_source_stats.items() | sort %}
+          {% for src, cnt in src_map.items() | sort(attribute='1', reverse=true) %}
+          <tr>
+            {% if loop.first %}<td rowspan="{{ src_map | length }}"><strong>{{ diet }}</strong></td>{% endif %}
+            <td>{% if src in src_urls %}<a href="{{ src_urls[src] }}" target="_blank" rel="noopener">{{ src_labels.get(src, src) }}</a>{% else %}{{ src }}{% endif %}</td>
+            <td>{{ cnt }}</td>
+          </tr>
+          {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </fieldset>
   </div>
 </div>
 
 <!-- Pipeline Modal (Sources) -->
 <div id="pipeline-modal" class="modal-overlay" hidden>
-  <div class="modal-content">
-    <button class="modal-close" data-modal="pipeline-modal">&times;</button>
-    <h2>Data Pipeline</h2>
-    <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp, Google Maps, OpenTable &amp; TripAdvisor.</p>
-    <table class="pipeline-table">
-      <thead><tr><th>Step</th><th>Result</th></tr></thead>
-      <tbody>
-        <tr><td>Raw input</td><td>{{ "{:,}".format(merge_stats.pre_merge) }} venues</td></tr>
-        {% for s in pipeline_stats %}
-        <tr><td>{{ s.label | e }}</td><td>&minus;{{ "{:,}".format(s.removed) }} ({{ s.detail | e }})</td></tr>
-        {% endfor %}
-        <tr><td>Pass 1 &mdash; exact address + borough</td><td>{{ "{:,}".format(merge_stats.pass1) }} merges</td></tr>
-        <tr><td>Pass 2 &mdash; address range containment</td><td>{{ "{:,}".format(merge_stats.pass2) }} merges</td></tr>
-        <tr><td>Pass 3 &mdash; geo-proximity &le; 30 m</td><td>{{ "{:,}".format(merge_stats.pass3) }} merges</td></tr>
-        <tr class="pipeline-total"><td>Final</td><td>{{ "{:,}".format(merge_stats.post_merge) }} venues ({{ "{:,}".format(merge_stats.total_merges) }} merged)</td></tr>
-      </tbody>
-    </table>
+  <div class="tui-window">
+    <fieldset class="tui-fieldset">
+      <legend>Data Pipeline</legend>
+      <button class="modal-close" data-modal="pipeline-modal">&times;</button>
+      <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp, Google Maps, OpenTable &amp; TripAdvisor.</p>
+      <table class="tui-table hovered">
+        <thead><tr><th>Step</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Raw input</td><td>{{ "{:,}".format(merge_stats.pre_merge) }} venues</td></tr>
+          {% for s in pipeline_stats %}
+          <tr><td>{{ s.label | e }}</td><td>&minus;{{ "{:,}".format(s.removed) }} ({{ s.detail | e }})</td></tr>
+          {% endfor %}
+          <tr><td>Pass 1 &mdash; exact address + borough</td><td>{{ "{:,}".format(merge_stats.pass1) }} merges</td></tr>
+          <tr><td>Pass 2 &mdash; address range containment</td><td>{{ "{:,}".format(merge_stats.pass2) }} merges</td></tr>
+          <tr><td>Pass 3 &mdash; geo-proximity &le; 30 m</td><td>{{ "{:,}".format(merge_stats.pass3) }} merges</td></tr>
+          <tr class="pipeline-total"><td>Final</td><td>{{ "{:,}".format(merge_stats.post_merge) }} venues ({{ "{:,}".format(merge_stats.total_merges) }} merged)</td></tr>
+        </tbody>
+      </table>
+      <p class="modal-attrib">UI styled with <a href="https://github.com/vinibiavatti1/TuiCss" target="_blank" rel="noopener">TuiCss</a></p>
+    </fieldset>
   </div>
 </div>
 
 <!-- Flags Modal -->
 <div id="flags-modal" class="modal-overlay" hidden>
-  <div class="modal-content">
-    <button class="modal-close" data-modal="flags-modal">&times;</button>
-    <h2>Discovery Flags</h2>
-    <p class="modal-intro">Every venue is cross-referenced against Yelp, Google Maps, OpenTable &amp; TripAdvisor. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
-    <h3>Flag Types</h3>
-    <ul class="xr-legend">
-      <li><span class="xr-badge-icon" style="color:#2563eb">G</span> <strong>Google hidden gem</strong> &mdash; Found on Google with &lt;100 reviews but &gt;4&thinsp;★. Quietly excellent.</li>
-      <li><span class="xr-badge-icon" style="color:#dc2626">Y</span> <strong>Yelp hidden gem</strong> &mdash; Found on Yelp with &lt;100 reviews but &gt;4&thinsp;★. Worth a visit.</li>
-      <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> <strong>New</strong> &mdash; Opened less than one month ago. Give them a chance.</li>
-      <li><span class="xr-badge-icon" style="color:#dc2626">★</span> <strong>Not on Yelp</strong> &mdash; Licensed or inspected, but Yelp doesn&rsquo;t know about them.</li>
-      <li><span class="xr-badge-icon" style="color:#2563eb">★</span> <strong>Not on Google</strong> &mdash; Licensed or inspected, but missing from Google Maps entirely.</li>
-    </ul>
+  <div class="tui-window">
+    <fieldset class="tui-fieldset">
+      <legend>Discovery Flags</legend>
+      <button class="modal-close" data-modal="flags-modal">&times;</button>
+      <p class="modal-intro">Every venue is cross-referenced against Yelp, Google Maps, OpenTable &amp; TripAdvisor. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
+      <div class="modal-heading">Flag Types</div>
+      <ul class="xr-legend">
+        <li><span class="xr-badge-icon" style="color:#2563eb">G</span> <strong>Google hidden gem</strong> &mdash; Found on Google with &lt;100 reviews but &gt;4&thinsp;★. Quietly excellent.</li>
+        <li><span class="xr-badge-icon" style="color:#dc2626">Y</span> <strong>Yelp hidden gem</strong> &mdash; Found on Yelp with &lt;100 reviews but &gt;4&thinsp;★. Worth a visit.</li>
+        <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> <strong>New</strong> &mdash; Opened less than one month ago. Give them a chance.</li>
+        <li><span class="xr-badge-icon" style="color:#dc2626">★</span> <strong>Not on Yelp</strong> &mdash; Licensed or inspected, but Yelp doesn&rsquo;t know about them.</li>
+        <li><span class="xr-badge-icon" style="color:#2563eb">★</span> <strong>Not on Google</strong> &mdash; Licensed or inspected, but missing from Google Maps entirely.</li>
+        <li><span class="xr-badge-icon" style="color:#16a34a">O</span> <strong>OpenTable gem</strong> &mdash; Found on OpenTable with &lt;100 reviews but &gt;4&thinsp;★.</li>
+        <li><span class="xr-badge-icon" style="color:#16a34a">★</span> <strong>Not on OpenTable</strong> &mdash; Licensed or inspected, but not listed on OpenTable.</li>
+        <li><span class="xr-badge-icon" style="color:#06b6d4">T</span> <strong>TripAdvisor gem</strong> &mdash; Found on TripAdvisor with &lt;100 reviews but &gt;4&thinsp;★.</li>
+        <li><span class="xr-badge-icon" style="color:#06b6d4">★</span> <strong>Not on TripAdvisor</strong> &mdash; Licensed or inspected, but not listed on TripAdvisor.</li>
+      </ul>
+    </fieldset>
   </div>
 </div>
 
@@ -176,6 +188,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin></script>
 <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
+
+<!-- TuiCss JS (modal/tab controllers) -->
+<script src="tuicss.min.js"></script>
 
 <!-- Venue data (generated at build time) -->
 <script src="venues.js?v={{ data_hash }}"></script>
@@ -271,6 +286,22 @@
     if (venue.xr_g === "not_found") {
       badges.push({ type: "not-on-google", label: "\u2605", color: "#2563eb", cls: "xr-blue" });
     }
+    // OpenTable hidden gem: found on OT, <100 reviews, >4 stars
+    if (venue.xr_ot === "found" && venue.otr != null && venue.otr < 100 && venue.otrt != null && venue.otrt > 4) {
+      badges.push({ type: "ot-gem", label: "O", color: "#16a34a", cls: "badge-ot" });
+    }
+    // Not on OpenTable
+    if (venue.xr_ot === "not_found") {
+      badges.push({ type: "not-on-ot", label: "\u2605", color: "#16a34a", cls: "xr-green" });
+    }
+    // TripAdvisor hidden gem: found on TA, <100 reviews, >4 stars
+    if (venue.xr_ta === "found" && venue.tar != null && venue.tar < 100 && venue.tart != null && venue.tart > 4) {
+      badges.push({ type: "ta-gem", label: "T", color: "#06b6d4", cls: "badge-ta" });
+    }
+    // Not on TripAdvisor
+    if (venue.xr_ta === "not_found") {
+      badges.push({ type: "not-on-ta", label: "\u2605", color: "#06b6d4", cls: "xr-cyan" });
+    }
     return badges;
   }
 
@@ -306,6 +337,14 @@
           popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Yelp</span>`);
         } else if (b.type === "not-on-google") {
           popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Google Maps</span>`);
+        } else if (b.type === "ot-gem") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">O OpenTable gem (${v.otrt}★, ${v.otr} reviews)</span>`);
+        } else if (b.type === "not-on-ot") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on OpenTable</span>`);
+        } else if (b.type === "ta-gem") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">T TripAdvisor gem (${v.tart}★, ${v.tar} reviews)</span>`);
+        } else if (b.type === "not-on-ta") {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on TripAdvisor</span>`);
         }
       }
     }
@@ -481,14 +520,10 @@
     r.addEventListener("change", applyFilters)
   );
 
-  const xrList = document.getElementById("xr-venue-list");
-
   function applyFilters() {
     const dietVal = document.querySelector('input[name="diet"]:checked').value;
     const flagVal = document.querySelector('input[name="flag"]:checked').value;
     const query = (searchInput.value || searchInputM.value).trim().toLowerCase();
-
-    xrList.innerHTML = "";
 
     allVenues = allVenuesUnfiltered.filter(v => {
       if (dietVal && (!v.diet || !v.diet.includes(dietVal))) return false;
@@ -510,30 +545,6 @@
     renderMarkers();
 
     updateFilterCounts(query);
-
-    // Build venue list for flag filters
-    if (flagVal) {
-      xrList.innerHTML = allVenues.filter(v => {
-        const badges = v._badges;
-        if (flagVal === "any") return badges.length > 0;
-        return badges.some(b => b.type === flagVal);
-      }).map(v => {
-        const badges = v._badges;
-        const top = flagVal === "any" ? badges[0] : badges.find(b => b.type === flagVal) || badges[0];
-        let detail = "";
-        if (top.type === "google-gem") detail = `${v.grt}★ · ${v.gr} reviews`;
-        else if (top.type === "yelp-gem") detail = `${v.yrt}★ · ${v.yr} reviews`;
-        else if (top.type === "new-venue") detail = `opened ${v.opened}`;
-        return `<a class="xr-venue-item" data-lat="${v.lat}" data-lng="${v.lng}" style="border-left:3px solid ${top.color}">` +
-          `<span class="xr-badge-icon" style="color:${top.color}">${top.label}</span> ${escHtml(v.name)}` +
-          `<small>${detail || escHtml(v.address || "")}</small></a>`;
-      }).join("");
-      xrList.querySelectorAll(".xr-venue-item").forEach((el) => {
-        el.addEventListener("click", () => {
-          map.setView([parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)], 18);
-        });
-      });
-    }
   }
 
   // --- Modals ---
