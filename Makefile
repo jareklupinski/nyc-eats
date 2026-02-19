@@ -101,8 +101,7 @@ cron/nyc-eats-refresh.service: cron/nyc-eats-refresh.service.in .env
 	sed -e 's|{{VPS_REPO}}|$(VPS_REPO)|g' \
 	    -e 's|{{VPS_PATH}}|$(VPS_PATH)|g' \
 	    -e 's|{{VPS_USER}}|$(firstword $(subst @, ,$(VPS_HOST)))|g' \
-	    -e 's|{{YELP_API_KEY}}|$(YELP_API_KEY)|g' \
-	    -e 's|{{GOOGLE_API_KEY}}|$(GOOGLE_API_KEY)|g' $< > $@
+	    -e 's|{{YELP_API_KEY}}|$(YELP_API_KEY)|g' $< > $@
 	@echo "Generated $@"
 
 clean:

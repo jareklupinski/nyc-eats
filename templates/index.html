@@ -32,58 +32,140 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v={{ css_hash }}">
 </head>
 <body>
 
 <div id="sidebar">
-  <h1>NYC Eats</h1>
-  <p class="subtitle">{{ venue_count | e }} venues · {{ build_time | e }}</p>
+  <!-- Header -->
+  <div class="sidebar-header">
+    <span class="sidebar-title">NYC Eats</span>
+    <a href="https://github.com/jareklupinski/nyc-eats" target="_blank" rel="noopener" class="gh-link" title="View on GitHub"><svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+  </div>
 
-  <div class="filter-section">
-    <h2>Sources</h2>
-    <div id="source-filters">
-      {% for src in all_sources %}
-      <label>
-        <input type="checkbox" class="source-cb" value="{{ src | e }}" checked>
-        {{ src | e }}
-      </label>
-      {% endfor %}
+  <hr class="sidebar-divider">
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <input type="text" id="search-input" placeholder="Search map…">
+    <button id="search-clear" type="button" aria-label="Clear"></button>
+    <button id="apply-btn" type="button" aria-label="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/><path d="M15.5 15.5L21 21"/></svg></button>
+  </div>
+
+  <hr class="sidebar-divider">
+
+  <!-- Sources -->
+  <div class="section-header">
+    <span class="section-title">Sources</span>
+    <button id="pipeline-info-btn" type="button" class="info-btn" title="Data pipeline">ⓘ</button>
+  </div>
+  <div class="filter-row" id="source-filters">
+    <label><input type="radio" name="source" value="all" checked> Both</label>
+    <label><input type="radio" name="source" value="dohmh"> Dept of Health</label>
+    <label><input type="radio" name="source" value="sla"> State Liquor</label>
+  </div>
+
+  <hr class="sidebar-divider">
+
+  {% if all_diets %}
+  <!-- Diet -->
+  <div class="section-header">
+    <span class="section-title">Diet</span>
+    <button id="diet-info-btn" type="button" class="info-btn" title="Diet data sources">ⓘ</button>
+  </div>
+  <div class="filter-row" id="diet-filters">
+    <label><input type="radio" name="diet" value="" checked> All</label>
+    {% for d in all_diets %}
+    <label><input type="radio" name="diet" value="{{ d | e }}"> {{ d | e | capitalize }}</label>
+    {% endfor %}
+  </div>
+
+  <hr class="sidebar-divider">
+  {% endif %}
+
+  <!-- Flags -->
+  <div class="section-header">
+    <span class="section-title">Flags</span>
+    <button id="flags-info-btn" type="button" class="info-btn" title="About discovery flags">ⓘ</button>
+  </div>
+  <div class="filter-row badge-section">
+    <div id="badge-filters" class="badge-filters">
+      <button class="badge-filter-btn" data-badge="google-gem"><span style="color:#2563eb">G</span> Google Gems</button>
+      <button class="badge-filter-btn" data-badge="yelp-gem"><span style="color:#dc2626">Y</span> Yelp Gems</button>
+      <button class="badge-filter-btn" data-badge="new-venue"><span style="color:#f59e0b">⏱</span> New</button>
+      <button class="badge-filter-btn" data-badge="not-on-yelp"><span style="color:#dc2626">★</span> No Yelp</button>
+      <button class="badge-filter-btn" data-badge="not-on-google"><span style="color:#2563eb">★</span> No Google</button>
+      <button class="badge-filter-btn" data-badge="any">All flagged</button>
     </div>
+    <div id="xr-venue-list" class="xr-venue-list"></div>
   </div>
 
-  <div class="filter-section">
-    <h2>Tags</h2>
-    <div id="tag-filters">
-      {% for tag in all_tags %}
-      <label>
-        <input type="checkbox" class="tag-cb" value="{{ tag | e }}" checked>
-        {{ tag | e }}
-      </label>
-      {% endfor %}
+  <hr class="sidebar-divider">
+
+  <!-- Updated timestamp -->
+  <div class="sidebar-updated">Updated: ༼ つ ◕_◕ ༽つ {{ build_time[:10] }}</div>
+</div>
+
+<!-- Citation Modal (Diet) -->
+<div id="cite-modal" class="modal-overlay" hidden>
+  <div class="modal-content">
+    <button class="modal-close" data-modal="cite-modal">&times;</button>
+    <h2>Diet Data Sources</h2>
+    <table class="cite-table">
+      <thead><tr><th>Diet</th><th>Source</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for diet, src_map in diet_source_stats.items() | sort %}
+        {% for src, cnt in src_map.items() | sort(attribute='1', reverse=true) %}
+        <tr>
+          {% if loop.first %}<td rowspan="{{ src_map | length }}"><strong>{{ diet }}</strong></td>{% endif %}
+          <td>{{ src }}</td>
+          <td>{{ cnt }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+    <h3>Authoritative Sources</h3>
+    <div class="cite-links">
+      <a href="https://www.hmsusa.org/certified-listing" target="_blank" rel="noopener" class="cite-link">
+        <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#065f46"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="sans-serif">H</text></svg>
+        HMS USA &mdash; Halal certified ({{ hms_matched }} matched)
+      </a>
+      <a href="https://koshernear.me/" target="_blank" rel="noopener" class="cite-link">
+        <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#1e40af"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="sans-serif">K</text></svg>
+        KosherNearMe &mdash; Kosher listings ({{ knm_matched }} matched)
+      </a>
     </div>
-  </div>
-
-  <div class="filter-section">
-    <h2>Search</h2>
-    <input type="text" id="search-input" placeholder="Name, cuisine, address…">
-  </div>
-
-  <div class="filter-section">
-    <button id="apply-btn">Apply Filters</button>
-    <button id="reset-btn">Reset</button>
-    <p id="visible-count"></p>
-  </div>
-
-  <div class="filter-section sources-info">
-    <h2>Data Sources</h2>
-    <ul>
+    <h3>Supplementary Sources</h3>
+    <div class="cite-links">
+      <a href="https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j" target="_blank" rel="noopener" class="cite-link">
+        <svg viewBox="0 0 16 16" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#6b7280"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">D</text></svg>
+        DOHMH &mdash; NYC restaurant inspection cuisine field
+      </a>
+      <a href="https://www.yelp.com/" target="_blank" rel="noopener" class="cite-link">
+        <svg viewBox="0 0 16 16" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#dc2626"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">Y</text></svg>
+        Yelp &mdash; Business category tags
+      </a>
+      <span class="cite-link cite-muted">
+        <svg viewBox="0 0 16 16" width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#9ca3af"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">N</text></svg>
+        Name &mdash; Venue name contains keyword
+      </span>
+    </div>
+    <h3>Venue Data</h3>
+    <ul class="cite-sources">
       {% for src in sources %}
       <li><strong>{{ src.name | e }}</strong>: {{ src.description | e }} ({{ "{:,}".format(src.count) }} venues)</li>
       {% endfor %}
     </ul>
+  </div>
+</div>
 
-    <h3>Pipeline</h3>
+<!-- Pipeline Modal (Sources) -->
+<div id="pipeline-modal" class="modal-overlay" hidden>
+  <div class="modal-content">
+    <button class="modal-close" data-modal="pipeline-modal">&times;</button>
+    <h2>Data Pipeline</h2>
+    <p class="modal-intro">{{ "{:,}".format(venue_count) }} venues built from public government datasets, cross-referenced with Yelp and Google Maps.</p>
     <table class="pipeline-table">
       <thead><tr><th>Step</th><th>Result</th></tr></thead>
       <tbody>
@@ -97,30 +179,23 @@
         <tr class="pipeline-total"><td>Final</td><td>{{ "{:,}".format(merge_stats.post_merge) }} venues ({{ "{:,}".format(merge_stats.total_merges) }} merged)</td></tr>
       </tbody>
     </table>
+  </div>
+</div>
 
-    <h3>Discovery Badges</h3>
+<!-- Flags Modal -->
+<div id="flags-modal" class="modal-overlay" hidden>
+  <div class="modal-content">
+    <button class="modal-close" data-modal="flags-modal">&times;</button>
+    <h2>Discovery Flags</h2>
+    <p class="modal-intro">Every venue is cross-referenced against Yelp and Google Maps. Flags highlight places that may be under-discovered &mdash; restaurants that haven&rsquo;t paid for prominent listings, or are too new to have accumulated reviews. The goal is to surface great local spots that algorithms might otherwise bury.</p>
+    <h3>Flag Types</h3>
     <ul class="xr-legend">
-      <li><span class="xr-badge-icon" style="color:#2563eb">G</span> Google hidden gem (&lt;100 reviews, &gt;4★)</li>
-      <li><span class="xr-badge-icon" style="color:#dc2626">Y</span> Yelp hidden gem (&lt;100 reviews, &gt;4★)</li>
-      <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> Opened &lt; 1 month ago</li>
-      <li><span class="xr-badge-icon" style="color:#dc2626">★</span> Not on Yelp</li>
-      <li><span class="xr-badge-icon" style="color:#2563eb">★</span> Not on Google Maps</li>
-      <li><span class="xr-badge-icon" style="color:#9333ea">★</span> Not on either</li>
+      <li><span class="xr-badge-icon" style="color:#2563eb">G</span> <strong>Google hidden gem</strong> &mdash; Found on Google with &lt;100 reviews but &gt;4&thinsp;★. Quietly excellent.</li>
+      <li><span class="xr-badge-icon" style="color:#dc2626">Y</span> <strong>Yelp hidden gem</strong> &mdash; Found on Yelp with &lt;100 reviews but &gt;4&thinsp;★. Worth a visit.</li>
+      <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> <strong>New</strong> &mdash; Opened less than one month ago. Give them a chance.</li>
+      <li><span class="xr-badge-icon" style="color:#dc2626">★</span> <strong>Not on Yelp</strong> &mdash; Licensed or inspected, but Yelp doesn&rsquo;t know about them.</li>
+      <li><span class="xr-badge-icon" style="color:#2563eb">★</span> <strong>Not on Google</strong> &mdash; Licensed or inspected, but missing from Google Maps entirely.</li>
     </ul>
-    <div id="badge-filters" class="badge-filters">
-      <button class="badge-filter-btn" data-badge="google-gem"><span style="color:#2563eb">G</span> Google Gems</button>
-      <button class="badge-filter-btn" data-badge="yelp-gem"><span style="color:#dc2626">Y</span> Yelp Gems</button>
-      <button class="badge-filter-btn" data-badge="new-venue"><span style="color:#f59e0b">⏱</span> New</button>
-      <button class="badge-filter-btn" data-badge="not-on-yelp"><span style="color:#dc2626">★</span> No Yelp</button>
-      <button class="badge-filter-btn" data-badge="not-on-google"><span style="color:#2563eb">★</span> No Google</button>
-      <button class="badge-filter-btn" data-badge="any">All flagged</button>
-    </div>
-    <div id="xr-venue-list" class="xr-venue-list"></div>
-
-    <a href="https://github.com/jareklupinski/nyc-eats" target="_blank" rel="noopener" class="github-link">
-      <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-      Source
-    </a>
   </div>
 </div>
 
@@ -137,6 +212,49 @@
 <script>
 (function () {
   "use strict";
+
+  // --- Diet source metadata: icon SVGs + citation URLs ---
+  const DIET_SRC = {
+    "HMS USA": {
+      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><circle cx="8" cy="8" r="7" fill="#065f46" stroke="#065f46" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="sans-serif">H</text></svg>`,
+      url: "https://www.hmsusa.org/certified-listing",
+      label: "HMS USA certified halal",
+      color: "#065f46",
+    },
+    "KosherNearMe": {
+      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><circle cx="8" cy="8" r="7" fill="#1e40af" stroke="#1e40af" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="sans-serif">K</text></svg>`,
+      url: "https://koshernear.me/",
+      label: "KosherNearMe listing",
+      color: "#1e40af",
+    },
+    "DOHMH": {
+      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="3" fill="#6b7280" stroke="#6b7280" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">D</text></svg>`,
+      url: "https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j",
+      label: "DOHMH cuisine classification",
+      color: "#6b7280",
+    },
+    "Yelp": {
+      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="3" fill="#dc2626" stroke="#dc2626" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">Y</text></svg>`,
+      url: "https://www.yelp.com/",
+      label: "Yelp category",
+      color: "#dc2626",
+    },
+    "Name": {
+      icon: `<svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="3" fill="#9ca3af" stroke="#9ca3af" stroke-width="1"/><text x="8" y="11.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="sans-serif">N</text></svg>`,
+      url: null,
+      label: "Venue name keyword",
+      color: "#9ca3af",
+    },
+  };
+
+  function dietTagHtml(diet, srcName) {
+    const meta = DIET_SRC[srcName];
+    if (!meta) return `<span class="diet-tag">${escHtml(diet)}</span>`;
+    const inner = meta.url
+      ? `<a href="${meta.url}" target="_blank" rel="noopener" class="diet-src-link" title="${escHtml(meta.label)}">${meta.icon}</a>`
+      : `<span class="diet-src-icon" title="${escHtml(meta.label)}">${meta.icon}</span>`;
+    return `<span class="diet-tag">${escHtml(diet)}${inner}</span>`;
+  }
 
   // --- Map setup ---
   const map = L.map("map", {
@@ -265,6 +383,10 @@
       popupParts.push(`<em class="popup-aka">SLA: ${escHtml(v.sla_name)}</em>`);
     }
     if (v.cuisine) popupParts.push(escHtml(v.cuisine));
+    if (v.diet && v.diet.length) {
+      const src = v.diet_src || {};
+      popupParts.push(`<span class="popup-diet">${v.diet.map(d => dietTagHtml(d, src[d])).join(" ")}</span>`);
+    }
     if (v.address) popupParts.push(escHtml(v.address));
     if (v.borough) popupParts.push(escHtml(v.borough));
     if (v.grade)   popupParts.push(`Grade: ${escHtml(v.grade)}`);
@@ -312,59 +434,74 @@
 
   // Initial add
   clusterGroup.addLayers(allMarkers);
-  updateCount(allMarkers.length);
 
   // --- Filtering ---
   const searchInput = document.getElementById("search-input");
   const applyBtn = document.getElementById("apply-btn");
-  const resetBtn = document.getElementById("reset-btn");
+  const clearBtn = document.getElementById("search-clear");
 
   applyBtn.addEventListener("click", applyFilters);
-  resetBtn.addEventListener("click", resetFilters);
-  searchInput.addEventListener("keyup", function (e) {
-    if (e.key === "Enter") applyFilters();
+  clearBtn.addEventListener("click", () => { searchInput.value = ""; clearBtn.style.display = "none"; applyFilters(); });
+  searchInput.addEventListener("keyup", e => { if (e.key === "Enter") applyFilters(); });
+  // Toggle clear button visibility
+  searchInput.addEventListener("input", () => {
+    clearBtn.style.display = searchInput.value ? "inline-flex" : "none";
   });
 
+  // Source & diet radios auto-apply
+  document.querySelectorAll('input[name="source"], input[name="diet"]').forEach(r =>
+    r.addEventListener("change", applyFilters)
+  );
+
   function applyFilters() {
-    const activeSources = new Set(
-      [...document.querySelectorAll(".source-cb:checked")].map(cb => cb.value)
-    );
-    const activeTags = new Set(
-      [...document.querySelectorAll(".tag-cb:checked")].map(cb => cb.value)
-    );
+    const srcVal = document.querySelector('input[name="source"]:checked').value;
+    const dietVal = document.querySelector('input[name="diet"]:checked').value;
     const query = searchInput.value.trim().toLowerCase();
 
     clusterGroup.clearLayers();
 
     const visible = allMarkers.filter(m => {
       const v = m._venue;
-      if (!activeSources.has(v.source)) return false;
-      if (v.tags && v.tags.length) {
-        if (!v.tags.some(t => activeTags.has(t))) return false;
-      }
+      // Source filter
+      if (srcVal === "dohmh" && v.source !== "dohmh" && v.source !== "both") return false;
+      if (srcVal === "sla" && v.source !== "sla" && v.source !== "both") return false;
+      // Diet filter
+      if (dietVal && (!v.diet || !v.diet.includes(dietVal))) return false;
+      // Search
       if (query) {
-        const hay = [v.name, v.cuisine, v.address, v.borough, ...(v.tags || [])].join(" ").toLowerCase();
+        const hay = [v.name, v.cuisine, v.address, v.borough, ...(v.diet || [])].join(" ").toLowerCase();
         if (!hay.includes(query)) return false;
       }
       return true;
     });
 
     clusterGroup.addLayers(visible);
-    updateCount(visible.length);
   }
 
-  function resetFilters() {
-    document.querySelectorAll(".source-cb, .tag-cb").forEach(cb => cb.checked = true);
-    searchInput.value = "";
-    clusterGroup.clearLayers();
-    clusterGroup.addLayers(allMarkers);
-    updateCount(allMarkers.length);
-  }
+  // --- Modals ---
+  function openModal(id) { document.getElementById(id).hidden = false; }
+  function closeModal(id) { document.getElementById(id).hidden = true; }
 
-  function updateCount(n) {
-    document.getElementById("visible-count").textContent =
-      n.toLocaleString() + " venues shown";
-  }
+  // Close buttons
+  document.querySelectorAll(".modal-close").forEach(btn =>
+    btn.addEventListener("click", () => closeModal(btn.dataset.modal))
+  );
+  // Click backdrop to close
+  document.querySelectorAll(".modal-overlay").forEach(el =>
+    el.addEventListener("click", e => { if (e.target === el) el.hidden = true; })
+  );
+
+  // Diet info button opens citation modal
+  const dietInfoBtn = document.getElementById("diet-info-btn");
+  if (dietInfoBtn) dietInfoBtn.addEventListener("click", () => openModal("cite-modal"));
+
+  // Pipeline info button opens pipeline modal
+  const pipelineInfoBtn = document.getElementById("pipeline-info-btn");
+  if (pipelineInfoBtn) pipelineInfoBtn.addEventListener("click", () => openModal("pipeline-modal"));
+
+  // Flags info button opens flags modal
+  const flagsInfoBtn = document.getElementById("flags-info-btn");
+  if (flagsInfoBtn) flagsInfoBtn.addEventListener("click", () => openModal("flags-modal"));
 
   function escHtml(s) {
     const div = document.createElement("div");
@@ -376,7 +513,6 @@
   const xrList = document.getElementById("xr-venue-list");
   let activeBadgeFilter = null;
 
-  // Precompute badge sets for each filter type
   function markersForBadge(type) {
     return allMarkers.filter(m => {
       const badges = venueBadges(m._venue);
@@ -385,7 +521,6 @@
     });
   }
 
-  // Set up badge filter buttons
   document.querySelectorAll(".badge-filter-btn").forEach(btn => {
     const type = btn.dataset.badge;
     const count = markersForBadge(type).length;
@@ -394,7 +529,6 @@
 
     btn.addEventListener("click", () => {
       const wasActive = btn.classList.contains("active");
-      // Deactivate all
       document.querySelectorAll(".badge-filter-btn").forEach(b => b.classList.remove("active"));
       clusterGroup.clearLayers();
       xrList.innerHTML = "";
@@ -402,14 +536,11 @@
       if (wasActive) {
         activeBadgeFilter = null;
         clusterGroup.addLayers(allMarkers);
-        updateCount(allMarkers.length);
       } else {
         activeBadgeFilter = type;
         btn.classList.add("active");
         const filtered = markersForBadge(type);
         clusterGroup.addLayers(filtered);
-        updateCount(filtered.length);
-        // Build clickable list
         xrList.innerHTML = filtered.map(m => {
           const v = m._venue;
           const badges = venueBadges(v);
@@ -424,9 +555,7 @@
         }).join("");
         xrList.querySelectorAll(".xr-venue-item").forEach((el, i) => {
           el.addEventListener("click", () => {
-            const lat = parseFloat(el.dataset.lat);
-            const lng = parseFloat(el.dataset.lng);
-            map.setView([lat, lng], 18);
+            map.setView([parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)], 18);
             filtered[i].openPopup();
           });
         });

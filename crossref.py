@@ -96,6 +96,7 @@ def init_db() -> sqlite3.Connection:
         ("google_lng",          "REAL"),
         ("yelp_lat",            "REAL"),
         ("yelp_lng",            "REAL"),
+        ("yelp_categories",     "TEXT"),
     ]
     for col, typ in migrations:
         if col not in existing_cols:
@@ -175,6 +176,7 @@ def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
             review_count = None
             yelp_rating = None
             y_lat = y_lng = None
+            y_categories = None
             for biz in resp.json().get("businesses", []):
                 if _name_similarity(name, biz.get("name", "")) >= 0.45:
                     found = True
@@ -185,18 +187,21 @@ def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
                     coords = biz.get("coordinates", {})
                     y_lat = coords.get("latitude")
                     y_lng = coords.get("longitude")
+                    cats = biz.get("categories", [])
+                    if cats:
+                        y_categories = ",".join(c.get("alias", "") for c in cats)
                     break
 
             conn.execute(
                 "UPDATE crossref SET yelp_status=?, yelp_checked_at=?, "
                 "yelp_business_id=?, yelp_url=?, yelp_review_count=?, yelp_rating=?, "
-                "yelp_lat=?, yelp_lng=? "
+                "yelp_lat=?, yelp_lng=?, yelp_categories=? "
                 "WHERE venue_key=?",
                 (
                     "found" if found else "not_found",
                     datetime.now(timezone.utc).isoformat(),
                     yelp_id, yelp_url, review_count, yelp_rating,
-                    y_lat, y_lng, key,
+                    y_lat, y_lng, y_categories, key,
                 ),
             )
         except requests.RequestException as exc:
@@ -549,11 +554,11 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
     for row in conn.execute(
         "SELECT venue_key, yelp_status, google_status, yelp_url, "
         "yelp_review_count, yelp_rating, google_rating_count, google_rating, "
-        "google_lat, google_lng, yelp_lat, yelp_lng "
+        "google_lat, google_lng, yelp_lat, yelp_lng, yelp_categories "
         "FROM crossref"
     ):
         (key, yelp_st, google_st, yelp_url, y_rc, y_rat, g_rc, g_rat,
-         g_lat, g_lng, y_lat, y_lng) = row
+         g_lat, g_lng, y_lat, y_lng, y_cats) = row
         flags[key] = {
             "yelp": yelp_st,
             "google": google_st,
@@ -566,6 +571,7 @@ def get_flags(conn: sqlite3.Connection) -> dict[str, dict]:
             "google_lng": g_lng,
             "yelp_lat": y_lat,
             "yelp_lng": y_lng,
+            "yelp_categories": y_cats.split(",") if y_cats else [],
         }
     return flags
 

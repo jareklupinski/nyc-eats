@@ -502,6 +502,8 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
                     v["gr"] = f["google_reviews"]   # google review count
                 if f.get("google_rating") is not None:
                     v["grt"] = f["google_rating"]   # google rating
+                if f.get("yelp_categories"):
+                    v["yelp_cats"] = f["yelp_categories"]
                 # Override coordinates with more precise ones from Google/Yelp
                 # but only if they fall within the venue's borough bbox.
                 # Try Google first (preferred), fall back to Yelp.
@@ -527,6 +529,178 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
     else:
         log.info("Cross-ref: no DB yet — skipping (run crossref.py first)")
 
+    # --- Dietary tags ---
+    # Authoritative sources: HMS USA → halal, KosherNearMe → kosher
+    # Supplementary: DOHMH cuisine, Yelp categories, venue name keywords
+    # Yelp-only: vegan, vegetarian, gluten-free
+    from diet_sources import fetch_hms_halal, fetch_knm_kosher
+
+    # --- Build matching indices for authoritative diet sources ---
+    hms_entries = fetch_hms_halal(use_cache=use_cache)
+    knm_entries = fetch_knm_kosher(use_cache=use_cache)
+
+    # HMS matching: name+address normalization
+    hms_by_addr: dict[tuple[str, str], dict] = {}   # (norm_addr, boro) → entry
+    hms_by_name: dict[tuple[str, str], dict] = {}   # (norm_name, boro) → entry
+    for h in hms_entries:
+        na = _normalize_addr(h.get("address", "").split(",")[0])  # street part only
+        boro = h.get("borough", "")
+        nn = _normalize(h.get("name", ""))
+        if na and boro:
+            hms_by_addr[(na, boro)] = h
+        if nn and boro:
+            hms_by_name[(nn, boro)] = h
+
+    # KNM matching: geo grid for proximity + name index
+    _KNM_CELL = 0.0003  # ~33m grid
+    knm_geo: dict[tuple[int, int], list[dict]] = {}
+    knm_by_name: dict[str, list[dict]] = {}
+    for k in knm_entries:
+        lat, lng = k.get("lat"), k.get("lng")
+        if lat and lng:
+            cell = (int(lat / _KNM_CELL), int(lng / _KNM_CELL))
+            knm_geo.setdefault(cell, []).append(k)
+        nn = _normalize(k.get("name", ""))
+        if nn:
+            knm_by_name.setdefault(nn, []).append(k)
+
+    def _match_hms(v: dict) -> dict | None:
+        """Try to match a venue to an HMS entry by address or name."""
+        boro = _normalize_boro(v.get("borough", ""))
+        if not boro:
+            return None
+        # Address match
+        na = _normalize_addr(v.get("address", ""))
+        hit = hms_by_addr.get((na, boro))
+        if hit:
+            return hit
+        # Name match within same borough
+        nn = _normalize(v.get("name", ""))
+        hit = hms_by_name.get((nn, boro))
+        if hit:
+            return hit
+        return None
+
+    def _match_knm(v: dict) -> dict | None:
+        """Try to match a venue to a KNM entry by geo proximity or name."""
+        lat, lng = v.get("lat"), v.get("lng")
+        if lat and lng:
+            cell = (int(lat / _KNM_CELL), int(lng / _KNM_CELL))
+            v_name = _normalize(v.get("name", ""))
+            best_dist = float("inf")
+            best = None
+            for di in (-1, 0, 1):
+                for dj in (-1, 0, 1):
+                    for k in knm_geo.get((cell[0] + di, cell[1] + dj), []):
+                        d = _haversine_m(lat, lng, k["lat"], k["lng"])
+                        if d < best_dist and d <= 80:
+                            kn = _normalize(k.get("name", ""))
+                            sim = SequenceMatcher(None, v_name, kn).ratio()
+                            if sim >= 0.45:
+                                best_dist = d
+                                best = k
+            if best:
+                return best
+        # Fallback: exact name match
+        nn = _normalize(v.get("name", ""))
+        hits = knm_by_name.get(nn, [])
+        if len(hits) == 1:
+            return hits[0]
+        return None
+
+    # Yelp category aliases → diet tag (vegan/vegetarian/gluten-free only)
+    _YELP_DIET = {
+        "vegan":       "vegan",
+        "vegetarian":  "vegetarian",
+        "veganraw":    "vegan",
+        "raw_food":    "vegan",
+        "gluten_free": "gluten-free",
+    }
+    # DOHMH cuisine → diet tag (vegan/vegetarian only; halal/kosher from auth sources)
+    _DOHMH_DIET = {
+        "Vegetarian":    "vegetarian",
+        "Vegan":         "vegan",
+    }
+
+    diet_counts: dict[str, int] = {}
+    diet_source_counts: dict[str, dict[str, int]] = {}  # diet → {source → count}
+    hms_matched = 0
+    knm_matched = 0
+
+    for v in all_venues:
+        diets: dict[str, str] = {}  # diet_tag → source_name
+
+        # --- Authoritative: HMS USA → halal ---
+        hms_hit = _match_hms(v)
+        if hms_hit:
+            diets["halal"] = "HMS USA"
+            hms_matched += 1
+
+        # --- Authoritative: KosherNearMe → kosher ---
+        knm_hit = _match_knm(v)
+        if knm_hit:
+            diets["kosher"] = "KosherNearMe"
+            knm_matched += 1
+
+        # --- Supplementary: DOHMH cuisine ---
+        cuisine = v.get("cuisine", "")
+        dt = _DOHMH_DIET.get(cuisine)
+        if dt and dt not in diets:
+            diets[dt] = "DOHMH"
+        # Halal/kosher from DOHMH cuisine (supplementary, lower priority)
+        cl = cuisine.lower()
+        if "halal" in cl and "halal" not in diets:
+            diets["halal"] = "DOHMH"
+        if "kosher" in cl and "kosher" not in diets:
+            diets["kosher"] = "DOHMH"
+        # Also from DOHMH cuisine type "Jewish/Kosher"
+        if cuisine == "Jewish/Kosher" and "kosher" not in diets:
+            diets["kosher"] = "DOHMH"
+
+        # --- Supplementary: venue name keywords ---
+        nl = v.get("name", "").lower()
+        if "halal" in nl and "halal" not in diets:
+            diets["halal"] = "Name"
+        if "kosher" in nl and "kosher" not in diets:
+            diets["kosher"] = "Name"
+        if "vegan" in nl and "vegan" not in diets:
+            diets["vegan"] = "Name"
+        if "vegetarian" in nl and "vegetarian" not in diets:
+            diets["vegetarian"] = "Name"
+
+        # --- Supplementary: Yelp categories ---
+        for yc in v.get("yelp_cats", []):
+            dt = _YELP_DIET.get(yc)
+            if dt and dt not in diets:
+                diets[dt] = "Yelp"
+        # Also allow Yelp halal/kosher as supplementary
+        for yc in v.get("yelp_cats", []):
+            if yc == "halal" and "halal" not in diets:
+                diets["halal"] = "Yelp"
+            if yc == "kosher" and "kosher" not in diets:
+                diets["kosher"] = "Yelp"
+
+        # vegan implies vegetarian
+        if "vegan" in diets and "vegetarian" not in diets:
+            diets["vegetarian"] = diets["vegan"]
+
+        if diets:
+            v["diet"] = sorted(diets.keys())
+            v["diet_src"] = diets  # {tag: source_name}
+            for d, src in diets.items():
+                diet_counts[d] = diet_counts.get(d, 0) + 1
+                diet_source_counts.setdefault(d, {})
+                diet_source_counts[d][src] = diet_source_counts[d].get(src, 0) + 1
+
+    all_diets = sorted(diet_counts.keys())
+    log.info("Dietary tags: %s", {d: diet_counts[d] for d in all_diets})
+    log.info("Diet source breakdown: %s", dict(diet_source_counts))
+    log.info("Authoritative matches: HMS=%d, KNM=%d", hms_matched, knm_matched)
+
+    # Strip internal-only keys before serialization
+    for v in all_venues:
+        v.pop("yelp_cats", None)
+
     # Collect all unique tags across venues for filter UI
     all_tags = sorted({t for v in all_venues for t in v.get("tags", [])})
     all_source_names = sorted({v["source"] for v in all_venues})
@@ -543,11 +717,21 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
         f"const SOURCE_META = {json.dumps(source_meta, separators=(',', ':'))};\n"
         f"const ALL_TAGS = {json.dumps(all_tags)};\n"
         f"const ALL_SOURCES = {json.dumps(all_source_names)};\n"
+        f"const ALL_DIETS = {json.dumps(all_diets)};\n"
+        f"const DIET_SOURCE_STATS = {json.dumps(diet_source_counts, separators=(',', ':'))};\n"
     )
     data_js.write_text(data_content)
     # Content hash for cache-busting
     data_hash = hashlib.sha256(data_content.encode()).hexdigest()[:12]
     log.info("Wrote %s (%.1f MB, hash=%s)", data_js, data_js.stat().st_size / 1e6, data_hash)
+
+    # Copy static assets & compute CSS hash for cache-busting
+    css_hash = ""
+    if STATIC.exists():
+        for f in STATIC.iterdir():
+            shutil.copy2(f, DIST / f.name)
+            if f.name == "style.css":
+                css_hash = hashlib.sha256(f.read_bytes()).hexdigest()[:12]
 
     # Render HTML
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
@@ -559,15 +743,15 @@ def build(selected_sources: set[str] | None = None, use_cache: bool = False) -> 
         all_tags=all_tags,
         all_sources=all_source_names,
         data_hash=data_hash,
+        css_hash=css_hash,
         pipeline_stats=pipeline_stats,
         merge_stats=merge_stats,
+        all_diets=all_diets,
+        diet_source_stats=diet_source_counts,
+        hms_matched=hms_matched,
+        knm_matched=knm_matched,
     )
     (DIST / "index.html").write_text(html)
-
-    # Copy static assets
-    if STATIC.exists():
-        for f in STATIC.iterdir():
-            shutil.copy2(f, DIST / f.name)
 
     log.info("Build complete → %s/", DIST)
 
