@@ -47,19 +47,16 @@ fi
 log "Building site…"
 "$VENV/bin/python" build.py -v 2>&1
 
-# Cross-reference: check venues against Yelp & OpenTable
-# (Google Places is pre-filled locally — not run on the server)
-# All sources run in parallel via ThreadPoolExecutor inside crossref.py.
-HAS_KEYS=false
-[ -n "${YELP_API_KEY:-}" ] && HAS_KEYS=true
-# OpenTable needs no API key (uses public GQL endpoint)
-HAS_KEYS=true
-
-if $HAS_KEYS; then
-    log "Running cross-reference checks (parallel)…"
+# Cross-reference: check venues against Yelp
+# Google Places is pre-filled locally; OpenTable 403s from cloud IPs.
+# Yelp processes ~4500 venues/day (YELP_DAILY_LIMIT); errors auto-reset
+# to 'unchecked' each run so transient failures are retried.
+if [ -n "${YELP_API_KEY:-}" ]; then
+    log "Running cross-reference checks (Yelp, up to ${YELP_DAILY_LIMIT:-4500}/day)…"
     XREF_START=$(date +%s)
     "$VENV/bin/python" crossref.py \
         --google-limit 0 \
+        --opentable-limit 0 \
         2>&1
     XREF_END=$(date +%s)
     log "Cross-reference completed in $(( XREF_END - XREF_START ))s"
@@ -68,7 +65,7 @@ if $HAS_KEYS; then
     log "Rebuilding with cross-ref data…"
     "$VENV/bin/python" build.py -v --cache 2>&1
 else
-    log "No API keys set — skipping cross-reference"
+    log "YELP_API_KEY not set — skipping cross-reference"
 fi
 
 # Deploy to serving directory

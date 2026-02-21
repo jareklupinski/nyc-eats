@@ -1,0 +1,18 @@
+[Unit]
+Description=NYC Eats visitor counter
+After=network.target
+
+[Service]
+Type=simple
+User=jarek
+ExecStart=/usr/bin/python3 /home/jarek/nyc-eats/counter/counter.py
+Environment=COUNTER_FILE=/home/jarek/food.lupin.ski/.counter
+Restart=always
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,4 @@
-.PHONY: build build-cached clean install cron-install cron-remove timer-install timer-remove serve deploy deploy-only
+.PHONY: build build-cached clean install cron-install cron-remove timer-install timer-remove counter-install counter-remove serve deploy deploy-only
 
 # Load deployment settings from .env (create from .env.example)
 -include .env
@@ -51,6 +51,19 @@ cron-remove:
 # --- Systemd timer (server) ---
 # Weekly rebuild on VPS via systemd — see cron/README.md
 
+counter-install: counter/nyc-eats-counter.service
+	rsync -avz counter/ $(VPS_HOST):$(VPS_REPO)/counter/
+	ssh $(VPS_HOST) 'sudo cp $(VPS_REPO)/counter/nyc-eats-counter.service /etc/systemd/system/ && \
+	  sudo systemctl daemon-reload && \
+	  sudo systemctl enable --now nyc-eats-counter'
+	@echo "Counter service installed."
+
+counter-remove:
+	ssh $(VPS_HOST) 'sudo systemctl disable --now nyc-eats-counter && \
+	  sudo rm -f /etc/systemd/system/nyc-eats-counter.service && \
+	  sudo systemctl daemon-reload'
+	@echo "Counter service removed."
+
 timer-install: cron/nyc-eats-refresh.service
 	rsync -avz cron/ $(VPS_HOST):$(VPS_REPO)/cron/
 	ssh $(VPS_HOST) 'chmod +x $(VPS_REPO)/cron/nyc-eats-refresh && \
@@ -77,10 +90,10 @@ serve: build
 # for initial nginx setup (before certbot), then run certbot once manually.
 
 deploy: build
-	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' dist/ $(VPS_HOST):$(VPS_PATH)/
+	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' --exclude='.counter*' dist/ $(VPS_HOST):$(VPS_PATH)/
 
 deploy-only:
-	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' dist/ $(VPS_HOST):$(VPS_PATH)/
+	rsync -avz --delete --exclude='nginx.conf' --exclude='refresh.log' --exclude='.counter*' dist/ $(VPS_HOST):$(VPS_PATH)/
 
 # Sync the full project repo + crossref DB to the server
 sync-repo:
@@ -109,6 +122,12 @@ deploy-nginx: nginx.conf
 nginx.conf: nginx.conf.in .env
 	sed -e 's|{{SITE_DOMAIN}}|$(SITE_DOMAIN)|g' \
 	    -e 's|{{VPS_PATH}}|$(VPS_PATH)|g' $< > $@
+	@echo "Generated $@"
+
+counter/nyc-eats-counter.service: counter/nyc-eats-counter.service.in .env
+	sed -e 's|{{VPS_REPO}}|$(VPS_REPO)|g' \
+	    -e 's|{{VPS_PATH}}|$(VPS_PATH)|g' \
+	    -e 's|{{VPS_USER}}|$(firstword $(subst @, ,$(VPS_HOST)))|g' $< > $@
 	@echo "Generated $@"
 
 cron/nyc-eats-refresh.service: cron/nyc-eats-refresh.service.in .env

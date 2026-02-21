@@ -91,6 +91,10 @@
     <label><input type="radio" name="flag" value="new-venue"> <span style="color:#f59e0b">⏱</span> New <span class="filter-count" data-flag="new-venue"></span></label>
     <label><input type="radio" name="flag" value="not-on-yelp"> <span style="color:#dc2626">★</span> No Yelp <span class="filter-count" data-flag="not-on-yelp"></span></label>
     <label><input type="radio" name="flag" value="not-on-google"> <span style="color:#2563eb">★</span> No Google <span class="filter-count" data-flag="not-on-google"></span></label>
+    <label><input type="radio" name="flag" value="dpr-food"> <span style="color:#34d399">🚚</span> Park Food <span class="filter-count" data-flag="dpr-food"></span></label>
+    <label><input type="radio" name="flag" value="farmers-market"> <span style="color:#fbbf24">🥬</span> Farmers Mkts <span class="filter-count" data-flag="farmers-market"></span></label>
+    <label><input type="radio" name="flag" value="grocery-store"> <span style="color:#fb923c">🛒</span> Grocery <span class="filter-count" data-flag="grocery-store"></span></label>
+    <label><input type="radio" name="flag" value="grocery-ebt"> <span style="color:#fb923c">🛒</span> EBT Grocery <span class="filter-count" data-flag="grocery-ebt"></span></label>
     <label><input type="radio" name="flag" value="any"> All flagged <span class="filter-count" data-flag="any"></span></label>
   </div>
 
@@ -150,6 +154,7 @@
           <tr class="pipeline-total"><td>Final</td><td>{{ "{:,}".format(merge_stats.post_merge) }} venues ({{ "{:,}".format(merge_stats.total_merges) }} merged)</td></tr>
         </tbody>
       </table>
+      <div class="visitor-counter">You are visitor <input type="text" id="visitor-count" class="tui-input" value="------" readonly> !</div>
       <p class="modal-attrib">UI styled with <a href="https://github.com/vinibiavatti1/TuiCss" target="_blank" rel="noopener">TuiCss</a></p>
     </fieldset>
   </div>
@@ -169,6 +174,9 @@
         <li><span class="xr-badge-icon" style="color:#f59e0b">⏱</span> <strong>New</strong> &mdash; Opened less than one month ago. Give them a chance.</li>
         <li><span class="xr-badge-icon" style="color:#dc2626">★</span> <strong>Not on Yelp</strong> &mdash; Licensed or inspected, but Yelp doesn&rsquo;t know about them.</li>
         <li><span class="xr-badge-icon" style="color:#2563eb">★</span> <strong>Not on Google</strong> &mdash; Licensed or inspected, but missing from Google Maps entirely.</li>
+        <li><span class="xr-badge-icon" style="color:#34d399">🚚</span> <strong>Park Food</strong> &mdash; Food carts, food trucks, snack bars, and restaurants operating inside NYC parks (DPR Eateries).</li>
+        <li><span class="xr-badge-icon" style="color:#fbbf24">🥬</span> <strong>Farmers Market</strong> &mdash; GrowNYC Greenmarkets, farm stands, and community markets across all five boroughs.</li>
+        <li><span class="xr-badge-icon" style="color:#fb923c">🛒</span> <strong>Grocery</strong> &mdash; NYS-licensed food retail stores: bodegas, supermarkets, specialty delis, bakeries, butchers. <strong>EBT Grocery</strong> filters to the subset accepting SNAP/EBT benefits.</li>
       </ul>
     </fieldset>
   </div>
@@ -245,8 +253,21 @@
     dohmh: "#60a5fa",   // bright blue
     both:  "#c084fc",   // bright purple
     sla:   "#f87171",   // bright red
+    dpr:   "#34d399",   // bright green
+    greenmarket: "#fbbf24", // warm yellow
+    grocery: "#fb923c",    // bright orange
   };
   const DEFAULT_COLOR = "#6b7280";
+
+  // DPR park-food category labels
+  const DPR_TAGS = {
+    food_cart: "Food Cart",
+    mobile_food_truck: "Food Truck",
+    snack_bar: "Snack Bar",
+    specialty_cart: "Specialty Cart",
+    restaurant: "Restaurant",
+    breakfast_cart: "Breakfast Cart",
+  };
 
   // Build date for "new venue" detection (opened < 1 month ago)
   const NOW = new Date();
@@ -277,6 +298,23 @@
     // Not on Google
     if (venue.xr_g === "not_found") {
       badges.push({ type: "not-on-google", label: "\u2605", color: "#2563eb", cls: "xr-blue" });
+    }
+    // DPR park-food categories
+    if (venue.source === "dpr" && venue.tags) {
+      for (const t of venue.tags) {
+        if (DPR_TAGS[t]) {
+          badges.push({ type: "dpr-" + t, label: "\uD83C\uDF33", color: "#34d399", cls: "badge-dpr", dprTag: t });
+        }
+      }
+    }
+    // Farmers market
+    if (venue.source === "greenmarket") {
+      badges.push({ type: "farmers-market", label: "\uD83E\uDD6C", color: "#fbbf24", cls: "badge-fm" });
+    }
+    // Grocery store (NYS licensed food retail)
+    if (venue.source === "grocery") {
+      const hasEbt = venue.tags && venue.tags.includes("ebt");
+      badges.push({ type: hasEbt ? "grocery-ebt" : "grocery-store", label: "\uD83D\uDED2", color: "#fb923c", cls: "badge-grocery", isGrocery: true, hasEbt: hasEbt });
     }
     return badges;
   }
@@ -313,6 +351,21 @@
           popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Yelp</span>`);
         } else if (b.type === "not-on-google") {
           popupParts.push(`<span class="xr-badge" style="color:${b.color}">★ Not on Google Maps</span>`);
+        } else if (b.dprTag) {
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">🌳 Park ${DPR_TAGS[b.dprTag]}${v.meta && v.meta.permit_end ? ' (permit thru ' + v.meta.permit_end + ')' : ''}</span>`);
+        } else if (b.type === "farmers-market") {
+          const sched = v.meta && v.meta.schedule ? ' · ' + v.meta.schedule : '';
+          const ebt = v.meta && v.meta.ebt ? ' · EBT' : '';
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">🥬 Farmers Market${sched}${ebt}</span>`);
+        } else if (b.isGrocery) {
+          const parts = ['🛒'];
+          const et = v.meta && v.meta.estab_type ? v.meta.estab_type : '';
+          if (et.includes('B')) parts.push('Bakery');
+          else if (et.includes('C')) parts.push('Deli/Grocery');
+          else parts.push('Food Store');
+          if (b.hasEbt) parts.push('· EBT');
+          if (et.includes('K')) parts.push('· Kosher');
+          popupParts.push(`<span class="xr-badge" style="color:${b.color}">${parts.join(' ')}</span>`);
         }
       }
     }
@@ -446,6 +499,9 @@
       const f = sp.dataset.flag;
       let n;
       if (f === 'any') n = pool.filter(v => v._badges.length > 0).length;
+      else if (f === 'dpr-food') n = pool.filter(v => v._badges.some(b => b.dprTag)).length;
+      else if (f === 'grocery-store') n = pool.filter(v => v._badges.some(b => b.isGrocery)).length;
+      else if (f === 'grocery-ebt') n = pool.filter(v => v._badges.some(b => b.isGrocery && b.hasEbt)).length;
       else n = pool.filter(v => v._badges.some(b => b.type === f)).length;
       sp.textContent = n;
     });
@@ -496,6 +552,9 @@
       if (flagVal) {
         const badges = v._badges;
         if (flagVal === "any") { if (!badges.length) return false; }
+        else if (flagVal === "dpr-food") { if (!badges.some(b => b.dprTag)) return false; }
+        else if (flagVal === "grocery-store") { if (!badges.some(b => b.isGrocery)) return false; }
+        else if (flagVal === "grocery-ebt") { if (!badges.some(b => b.isGrocery && b.hasEbt)) return false; }
         else { if (!badges.some(b => b.type === flagVal)) return false; }
       }
       if (query) {
@@ -543,6 +602,12 @@
     div.textContent = s || "";
     return div.innerHTML;
   }
+
+  // --- Visitor counter ---
+  fetch("/api/hit?_=" + Date.now(), {cache: "no-store"}).then(r => r.json()).then(d => {
+    const el = document.getElementById("visitor-count");
+    if (el) el.value = String(d.count).padStart(6, "0");
+  }).catch(() => {});
 
   // --- Invalidate map size when layout changes (mobile stacked) ---
   window.addEventListener("resize", () => map.invalidateSize());

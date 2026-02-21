@@ -166,10 +166,33 @@ BORO_MAP = {
 }
 
 
+def _yelp_quota_hit(resp: requests.Response) -> bool:
+    """Return True if the Yelp response indicates a rate/quota limit."""
+    if resp.status_code == 429:
+        return True
+    if resp.status_code == 403:
+        try:
+            code = resp.json().get("error", {}).get("code", "")
+        except Exception:
+            code = ""
+        if code in ("ACCESS_LIMIT_REACHED", "DAILY_LIMIT_REACHED",
+                    "TOKEN_MISSING", "TOKEN_INVALID"):
+            return True
+    return False
+
+
 def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
     if not YELP_API_KEY:
         log.warning("YELP_API_KEY not set — skipping")
         return 0
+
+    # Reset transient errors so they get retried this run
+    reset = conn.execute(
+        "UPDATE crossref SET yelp_status = 'unchecked' WHERE yelp_status = 'error'"
+    ).rowcount
+    if reset:
+        conn.commit()
+        log.info("Yelp: reset %d error venues → unchecked", reset)
 
     limit = limit or YELP_DAILY_LIMIT
     rows = conn.execute(
@@ -194,8 +217,8 @@ def check_yelp(conn: sqlite3.Connection, limit: int | None = None) -> int:
                 params={"term": name, "location": f"{address}, {city}, NY", "limit": 3},
                 timeout=15,
             )
-            if resp.status_code == 429:
-                log.warning("Yelp rate-limited after %d requests", checked)
+            if _yelp_quota_hit(resp):
+                log.warning("Yelp quota reached (HTTP %d) after %d requests", resp.status_code, checked)
                 conn.commit()
                 return checked
             resp.raise_for_status()
@@ -503,8 +526,8 @@ def backfill_yelp(conn: sqlite3.Connection, limit: int = 500) -> int:
                 headers=headers,
                 timeout=15,
             )
-            if resp.status_code == 429:
-                log.warning("Yelp backfill rate-limited after %d", filled)
+            if _yelp_quota_hit(resp):
+                log.warning("Yelp backfill quota reached (HTTP %d) after %d", resp.status_code, filled)
                 conn.commit()
                 return filled
             resp.raise_for_status()
@@ -668,8 +691,8 @@ def backfill_coords_yelp(conn: sqlite3.Connection, limit: int = 1000) -> int:
                 headers=headers,
                 timeout=15,
             )
-            if resp.status_code == 429:
-                log.warning("Yelp coord backfill rate-limited after %d", filled)
+            if _yelp_quota_hit(resp):
+                log.warning("Yelp coord backfill quota reached (HTTP %d) after %d", resp.status_code, filled)
                 conn.commit()
                 return filled
             resp.raise_for_status()

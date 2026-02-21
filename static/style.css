@@ -332,6 +332,32 @@ body {
 .modal-attrib a { color: #d4a017; }
 .modal-attrib a:hover { color: #e8b830; }
 
+/* Visitor counter */
+.visitor-counter {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: #888;
+  letter-spacing: 1px;
+  font-family: 'Fixedsys62', 'Perfect DOS VGA 437', monospace;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.visitor-counter .tui-input {
+  width: 90px !important;
+  min-width: 90px;
+  padding: 2px 4px !important;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: #4ade80;
+  background: #000;
+  border: 1px solid #555;
+  text-align: center;
+  letter-spacing: 2px;
+  cursor: default;
+  box-shadow: inset 1px 1px 0 #333;
+}
+
 /* --- Mobile top bar (hidden on desktop) --- */
 #top-bar { display: none; }
 

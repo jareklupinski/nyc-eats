@@ -1,0 +1,18 @@
+[Unit]
+Description=NYC Eats visitor counter
+After=network.target
+
+[Service]
+Type=simple
+User={{VPS_USER}}
+ExecStart=/usr/bin/python3 {{VPS_REPO}}/counter/counter.py
+Environment=COUNTER_FILE={{VPS_PATH}}/.counter
+Restart=always
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
